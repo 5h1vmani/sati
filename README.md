@@ -2,6 +2,13 @@
 
 Sati is an Android app that rings a bell now and then during your waking hours. Each bell is a moment to come back to the present. The name is the Pali word for mindfulness.
 
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="180" alt="Sati is on: the next bell time in large type, with pause buttons">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="180" alt="Sati is paused until a set time, with a Resume now button">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="180" alt="Settings: waking hours for weekdays and weekends, and the bell sound with a volume slider">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="180" alt="Sati is off, with a Turn on button">
+</p>
+
 ## Features
 
 - Random rhythm, so the mind does not learn to ignore the bell, or a fixed rhythm on the clock.

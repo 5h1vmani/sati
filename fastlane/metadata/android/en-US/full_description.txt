@@ -1,0 +1,19 @@
+Sati rings a bell now and then during your waking hours. Each bell is a moment to stop, breathe, and notice where you are. The name is the Pali word for mindfulness.
+
+<b>How it works</b>
+<ul>
+<li>Random rhythm: bells come at unexpected times, so the mind does not learn to ignore them.</li>
+<li>Fixed rhythm: bells come on the clock, for example every hour.</li>
+<li>Choose the interval, from 15 minutes to 2 hours.</li>
+<li>Set separate waking hours for weekdays and weekends.</li>
+<li>Pause for one or two hours. The bell starts again by itself.</li>
+<li>On silent or Do Not Disturb, the phone vibrates instead.</li>
+<li>Use the built-in bell or choose your own sound, and set its volume.</li>
+<li>Turn the bell on or off from a Quick Settings tile.</li>
+</ul>
+
+<b>Calm by design</b>
+The bell needs no taps. It has no streaks, no statistics and no notifications. It keeps working after a restart, and it uses almost no battery.
+
+<b>Private</b>
+Sati has no internet permission. It collects nothing and sends nothing.

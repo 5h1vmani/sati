@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sati brand colour. -->
+    <color name="icon_background">#A55E3B</color>
+    <!-- Near-white icon lines. Contrast on the brand colour is 4.68:1 (tools/contrast.py). -->
+    <color name="icon_foreground">#FFF8F2</color>
+    <color name="window_background">#FFF8F5</color>
+</resources>

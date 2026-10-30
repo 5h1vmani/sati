@@ -1,0 +1,17 @@
+# Build output and local machine files
+.gradle/
+build/
+app/build/
+local.properties
+.DS_Store
+.idea/
+*.iml
+.kotlin/
+
+# Release signing. The key and its passwords never go into git.
+keystore.properties
+*.jks
+*.keystore
+
+# Source audio. Only the chosen bell in app/src/main/res/raw is committed.
+sounds/

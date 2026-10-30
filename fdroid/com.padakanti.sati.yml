@@ -1,7 +1,7 @@
 # Draft F-Droid metadata. It goes into the fdroiddata repository on GitLab as
 # metadata/com.padakanti.sati.yml, not into this app. Reviewers may adjust it.
 Categories:
-  - Time
+  - Meditation
 License: GPL-3.0-or-later
 AuthorName: Shiv Padakanti
 SourceCode: https://github.com/5h1vmani/sati

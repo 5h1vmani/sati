@@ -38,10 +38,13 @@ object Sounds {
 
     /**
      * Copies the file at [uri] into app storage and checks that it plays.
-     * Runs file work, so call it off the main thread, and only one at a time.
+     * Runs file work, so call it off the main thread. Imports run one at a
+     * time, and each copies into its own temporary file, so two quick picks
+     * (for example across a screen rotation) cannot corrupt the sound.
      */
+    @Synchronized
     fun importFrom(context: Context, uri: Uri): ImportResult {
-        val incoming = File(dir(context), "incoming_sound")
+        val incoming = File.createTempFile("incoming_", ".sound", dir(context))
         try {
             val copied = context.contentResolver.openInputStream(uri)?.use { input ->
                 incoming.outputStream().use { out -> copyCapped(input, out) }

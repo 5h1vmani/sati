@@ -39,11 +39,11 @@ object Alarms {
      * stored time, so the screen would show a bell that never comes. Setting
      * the same PendingIntent replaces any alarm that is still there.
      */
-    fun rearm(context: Context) {
+    fun rearm(context: Context, refresh: Boolean = true) {
         val store = Store(context)
         if (store.enabled && store.nextRing > System.currentTimeMillis()) {
             set(context, store.nextRing)
-            refreshTile(context)
+            if (refresh) refreshTile(context)
         } else {
             reschedule(context)
         }
@@ -54,11 +54,16 @@ object Alarms {
         // Exact alarms wake the phone at the planned minute, even in Doze.
         // Without the permission, Android may deliver the bell a large share
         // of the wait late, and a bell that lands after waking hours is dropped.
-        if (alarms.canScheduleExactAlarms()) {
-            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context))
-        } else {
-            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context))
+        try {
+            if (alarms.canScheduleExactAlarms()) {
+                alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context))
+                return
+            }
+        } catch (e: SecurityException) {
+            // The permission was revoked between the check and the call.
+            // Fall through to an inexact alarm so the chain does not end.
         }
+        alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context))
     }
 
     private fun pending(context: Context) = PendingIntent.getBroadcast(

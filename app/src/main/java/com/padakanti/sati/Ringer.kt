@@ -29,7 +29,8 @@ object Ringer {
             if (wake.isHeld) wake.release()
             done()
         }
-        if (isSilenced(context)) {
+        // A bell at zero notification volume would be silent, so it vibrates too.
+        if (isSilenced(context) || isInaudible(context)) {
             vibrate(context)
             finish()
         } else {

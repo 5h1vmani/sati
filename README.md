@@ -40,7 +40,7 @@ Without a `keystore.properties` file, the release APK is unsigned. The file is i
 
 ## Credits
 
-- Icons: [Lucide](https://lucide.dev), ISC license.
+- Icons: [Lucide](https://lucide.dev), ISC license; a few icons derive from Feather, MIT license. Full texts are in [NOTICE](NOTICE).
 - Bell sound: a ghanta (Tibetan hand bell) recorded by [the_very_Real_Horst](https://freesound.org/people/the_very_Real_Horst/sounds/274316/), CC0, via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:274316_the-very-real-horst_ghanta-leather-mallet-2015-05-16.wav). Trimmed to one strike and faded out.
 
 ## License

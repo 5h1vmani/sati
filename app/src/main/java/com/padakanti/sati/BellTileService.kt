@@ -5,7 +5,13 @@ import android.service.quicksettings.TileService
 
 /** A Quick Settings tile that turns the bell on or off. */
 class BellTileService : TileService() {
-    override fun onStartListening() = update()
+    override fun onStartListening() {
+        // A force-stop cancels the alarm but keeps the stored time. Set it
+        // again here too, so the tile never shows a bell that will not come.
+        // No tile refresh from inside the tile, to avoid a listening loop.
+        Alarms.rearm(this, refresh = false)
+        update()
+    }
 
     override fun onClick() {
         val store = Store(this)

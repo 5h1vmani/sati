@@ -99,7 +99,8 @@ class MainActivity : ComponentActivity(), SatiActions {
             inaudible = Ringer.isInaudible(this),
             needsBattery = !getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName),
             needsExact = !getSystemService(AlarmManager::class.java).canScheduleExactAlarms(),
-            needsHibernation = !packageManager.isAutoRevokeWhitelisted,
+            // Some phones have no setting for unused apps. Do not ask for one that cannot be changed.
+            needsHibernation = !packageManager.isAutoRevokeWhitelisted && hibernationIntent().resolveActivity(packageManager) != null,
             importing = importing,
             previewing = previewStop != null,
             message = message,
@@ -217,9 +218,10 @@ class MainActivity : ComponentActivity(), SatiActions {
         Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName")),
     )
 
-    override fun fixHibernation() = open(
-        Intent(Intent.ACTION_AUTO_REVOKE_PERMISSIONS, Uri.fromParts("package", packageName, null)),
-    )
+    override fun fixHibernation() = open(hibernationIntent())
+
+    private fun hibernationIntent() =
+        Intent(Intent.ACTION_AUTO_REVOKE_PERMISSIONS, Uri.fromParts("package", packageName, null))
 
     override fun messageShown() {
         message = null

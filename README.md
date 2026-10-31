@@ -15,7 +15,7 @@ Sati is an Android app that rings a bell now and then during your waking hours. 
 - An interval from 15 minutes to 2 hours.
 - Separate waking hours for weekdays and weekends.
 - Pause for one or two hours. The bell starts again by itself.
-- On silent or Do Not Disturb, the phone vibrates instead.
+- On silent, the phone vibrates instead. During Do Not Disturb, Sati stays quiet.
 - The built-in bell or your own sound, with its own volume.
 - A Quick Settings tile to turn the bell on or off.
 - It keeps ringing after a restart, even before the first unlock.
@@ -34,13 +34,13 @@ The build needs JDK 17 or later and the Android SDK.
 ./gradlew testDebugUnitTest assembleRelease
 ```
 
-Without a `keystore.properties` file, the release APK is unsigned. The file is ignored by git.
+This builds an unsigned release APK, which is how F-Droid builds it. The maintainer signs official releases with `tools/release.sh`. That script reads the key from outside the repo and its password from the macOS Keychain.
 
 ## Project layout
 
 - `app/src/main/java/com/padakanti/sati/Scheduler.kt` picks the next bell time. It has no Android code and is unit-tested.
 - `Alarms.kt` keeps exactly one exact alarm set for the next bell.
-- `Ringer.kt` plays the bell, or vibrates when the phone is silenced.
+- `Ringer.kt` plays the bell, vibrates when the phone is silenced, and stays quiet during Do Not Disturb.
 - `ui/` holds the Compose screen and the theme.
 - `tools/lucide_to_vector.py` converts Lucide icons into Android vector drawables.
 - `tools/contrast.py` checks that every colour pair in the theme meets WCAG AA contrast.

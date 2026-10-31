@@ -1,10 +1,16 @@
 package com.padakanti.sati
 
 import android.app.AlarmManager
+import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.media.AudioManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -44,6 +50,14 @@ class MainActivity : ComponentActivity(), SatiActions {
     // Kept in a field: SharedPreferences holds listeners only weakly.
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> tick++ }
 
+    // Do Not Disturb and the ringer mode change outside the app. Rebuild at
+    // once, so the notices never show the old state.
+    private val phoneState = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            tick++
+        }
+    }
+
     private val pickSound = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) importSound(uri)
     }
@@ -75,8 +89,23 @@ class MainActivity : ComponentActivity(), SatiActions {
         tick++
     }
 
+    override fun onStart() {
+        super.onStart()
+        val filter = IntentFilter().apply {
+            addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED)
+            addAction(AudioManager.RINGER_MODE_CHANGED_ACTION)
+        }
+        // Not exported: only the system sends these, and it still reaches the receiver.
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(phoneState, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(phoneState, filter)
+        }
+    }
+
     override fun onStop() {
         super.onStop()
+        unregisterReceiver(phoneState)
         previewStop?.invoke()
     }
 
@@ -95,6 +124,7 @@ class MainActivity : ComponentActivity(), SatiActions {
             weekend = Hours(store.weekendStart, store.weekendEnd),
             soundName = store.soundName,
             volume = store.volume,
+            doNotDisturb = Ringer.isDoNotDisturb(this),
             silenced = Ringer.isSilenced(this),
             inaudible = Ringer.isInaudible(this),
             needsBattery = !getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(packageName),

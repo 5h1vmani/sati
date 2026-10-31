@@ -1,0 +1,2 @@
+Sati now stays quiet during Do Not Disturb: no sound and no vibration.
+On silent or vibrate mode, it still vibrates.

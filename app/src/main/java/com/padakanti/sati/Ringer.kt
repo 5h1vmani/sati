@@ -15,7 +15,7 @@ import android.os.VibrationEffect
 import android.os.VibratorManager
 import android.util.Log
 
-/** Plays the bell, or vibrates when the phone is silenced. */
+/** Plays the bell, vibrates when the phone is silenced, and stays quiet during Do Not Disturb. */
 object Ringer {
     /** Long sounds are cut here. A broadcast receiver may not run much longer. */
     const val MAX_PLAY_MS = 30_000L
@@ -29,37 +29,54 @@ object Ringer {
             if (wake.isHeld) wake.release()
             done()
         }
-        // A bell at zero notification volume would be silent, so it vibrates too.
-        if (isSilenced(context) || isInaudible(context)) {
-            vibrate(context)
-            finish()
-        } else {
-            play(context, finish)
+        // The next bell is already scheduled, so a quiet bell does not end the chain.
+        when (action(context)) {
+            BellAction.Quiet -> finish()
+            BellAction.Vibrate -> {
+                vibrate(context)
+                finish()
+            }
+            BellAction.Play -> play(context, finish)
         }
     }
 
-    /** True on silent, vibrate, Do Not Disturb, or while a call rings or is active. */
-    fun isSilenced(context: Context): Boolean {
-        val audio = context.getSystemService(AudioManager::class.java)
-        if (audio.ringerMode != AudioManager.RINGER_MODE_NORMAL) return true
+    /** Reads the phone's state and decides; see [BellAction.of]. */
+    private fun action(context: Context): BellAction = BellAction.of(
+        doNotDisturb = isDoNotDisturb(context),
+        ringerSilent = isRingerSilent(context),
+        inCall = isInCall(context),
+        volumeZero = isVolumeZero(context),
+    )
+
+    /** True while Do Not Disturb is on, in any of its modes. */
+    fun isDoNotDisturb(context: Context): Boolean {
         val filter = context.getSystemService(NotificationManager::class.java).currentInterruptionFilter
-        if (filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
+        return filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
             filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
-        ) return true
-        // A bell over a ringing phone or in the ear during a call is worse
-        // than a short vibration.
-        return audio.mode in setOf(
+    }
+
+    /** True on silent or vibrate, or while a call rings or is active. */
+    fun isSilenced(context: Context): Boolean = isRingerSilent(context) || isInCall(context)
+
+    /** True when the bell would play but the notification volume is at zero. */
+    fun isInaudible(context: Context): Boolean =
+        !isDoNotDisturb(context) && !isSilenced(context) && isVolumeZero(context)
+
+    private fun isRingerSilent(context: Context): Boolean =
+        context.getSystemService(AudioManager::class.java).ringerMode != AudioManager.RINGER_MODE_NORMAL
+
+    // A bell over a ringing phone or in the ear during a call is worse
+    // than a short vibration.
+    private fun isInCall(context: Context): Boolean =
+        context.getSystemService(AudioManager::class.java).mode in setOf(
             AudioManager.MODE_RINGTONE,
             AudioManager.MODE_IN_CALL,
             AudioManager.MODE_IN_COMMUNICATION,
             AudioManager.MODE_CALL_SCREENING,
         )
-    }
 
-    /** True when the bell would play but the notification volume is at zero. */
-    fun isInaudible(context: Context): Boolean =
-        !isSilenced(context) &&
-            context.getSystemService(AudioManager::class.java).getStreamVolume(AudioManager.STREAM_NOTIFICATION) == 0
+    private fun isVolumeZero(context: Context): Boolean =
+        context.getSystemService(AudioManager::class.java).getStreamVolume(AudioManager.STREAM_NOTIFICATION) == 0
 
     /**
      * Plays the chosen sound at the app's volume, within the notification

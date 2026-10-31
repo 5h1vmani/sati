@@ -1,15 +1,15 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
 
-// Release signing reads keystore.properties, which git ignores. Without the
-// file, the release APK is unsigned. F-Droid builds that way and signs it
-// with its own key.
-val keystoreFile = rootProject.file("keystore.properties")
-val keystore = Properties().apply { if (keystoreFile.exists()) keystoreFile.inputStream().use(::load) }
+// Release signing reads the key's path and password from the environment.
+// tools/release.sh sets both from ~/keys and the macOS Keychain, so no secret
+// is ever in a file here. Without them, the release APK is unsigned, which is
+// how F-Droid builds it.
+val releaseKeystore = providers.environmentVariable("SATI_KEYSTORE").orNull
+val releasePassword = providers.environmentVariable("SATI_KEY_PASSWORD").orNull
+val signRelease = releaseKeystore != null && releasePassword != null
 
 android {
     namespace = "com.padakanti.sati"
@@ -20,17 +20,17 @@ android {
         // The phone is a Pixel 3 XL on Android 12, which is API 31.
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
 
     signingConfigs {
-        if (keystoreFile.exists()) {
+        if (signRelease) {
             create("release") {
-                storeFile = rootProject.file(keystore.getProperty("storeFile"))
-                storePassword = keystore.getProperty("storePassword")
-                keyAlias = keystore.getProperty("keyAlias")
-                keyPassword = keystore.getProperty("keyPassword")
+                storeFile = file(releaseKeystore!!)
+                storePassword = releasePassword
+                keyAlias = "sati"
+                keyPassword = releasePassword
             }
         }
     }
@@ -41,7 +41,7 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            if (keystoreFile.exists()) signingConfig = signingConfigs.getByName("release")
+            if (signRelease) signingConfig = signingConfigs.getByName("release")
         }
     }
 

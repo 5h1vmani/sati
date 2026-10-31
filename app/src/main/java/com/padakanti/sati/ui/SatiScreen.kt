@@ -89,6 +89,7 @@ data class SatiUi(
     val weekend: Hours,
     val soundName: String?,
     val volume: Int,
+    val doNotDisturb: Boolean,
     val silenced: Boolean,
     val inaudible: Boolean,
     val needsBattery: Boolean,
@@ -156,7 +157,9 @@ fun SatiScreen(ui: SatiUi, now: Long, actions: SatiActions) {
             )
             Hero(ui, now, actions)
             if (ui.home !is HomeState.Off) {
-                if (ui.inaudible) {
+                if (ui.doNotDisturb) {
+                    Notice(R.drawable.lucide_moon, "Do Not Disturb is on. Sati stays quiet until it ends.")
+                } else if (ui.inaudible) {
                     Notice(R.drawable.lucide_volume_x, "Notification volume is off. Turn it up to hear the bell.", warning = true)
                 } else if (ui.silenced) {
                     Notice(R.drawable.lucide_vibrate, "Your phone is silent. Sati will vibrate instead of ringing.")
@@ -167,8 +170,8 @@ fun SatiScreen(ui: SatiUi, now: Long, actions: SatiActions) {
             HoursCard(ui) { editing = it }
             SoundCard(ui, actions)
             Text(
-                "On silent or Do Not Disturb, Sati vibrates instead. The bell follows your notification " +
-                    "volume. Sounds stop after 30 seconds.",
+                "On silent, Sati vibrates instead. During Do Not Disturb, it stays quiet. The bell " +
+                    "follows your notification volume. Sounds stop after 30 seconds.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),

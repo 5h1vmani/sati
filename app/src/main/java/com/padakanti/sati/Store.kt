@@ -2,6 +2,7 @@ package com.padakanti.sati
 
 import android.content.Context
 import android.content.SharedPreferences
+import java.time.ZonedDateTime
 
 /**
  * The app's settings, kept in SharedPreferences in device-protected storage.
@@ -24,19 +25,19 @@ class Store(context: Context) {
         get() = prefs.getBoolean("random", true)
         set(v) = prefs.edit().putBoolean("random", v).apply()
 
-    var weekdayStart: Int
+    private var weekdayStart: Int
         get() = prefs.getInt("weekdayStart", 7 * 60)
         set(v) = prefs.edit().putInt("weekdayStart", v).apply()
 
-    var weekdayEnd: Int
+    private var weekdayEnd: Int
         get() = prefs.getInt("weekdayEnd", 22 * 60)
         set(v) = prefs.edit().putInt("weekdayEnd", v).apply()
 
-    var weekendStart: Int
+    private var weekendStart: Int
         get() = prefs.getInt("weekendStart", 8 * 60)
         set(v) = prefs.edit().putInt("weekendStart", v).apply()
 
-    var weekendEnd: Int
+    private var weekendEnd: Int
         get() = prefs.getInt("weekendEnd", 22 * 60)
         set(v) = prefs.edit().putInt("weekendEnd", v).apply()
 
@@ -60,25 +61,70 @@ class Store(context: Context) {
         get() = prefs.getString("soundName", null)
         set(v) = prefs.edit().putString("soundName", v).apply()
 
-    /** Bell volume, 5 to 100 percent of the notification volume. */
+    /** Hourly bell volume, in percent of the notification volume. */
     var volume: Int
-        get() = prefs.getInt("volume", 70)
-        set(v) = prefs.edit().putInt("volume", v.coerceIn(MIN_VOLUME, 100)).apply()
+        get() = prefs.getInt("volume", DEFAULT_VOLUME)
+        set(v) = prefs.edit().putInt("volume", v.coerceIn(MIN_VOLUME, MAX_VOLUME)).apply()
+
+    /** Sadhana bell volume, in percent of the alarm volume. */
+    var sadhanaVolume: Int
+        get() = prefs.getInt("sadhanaVolume", DEFAULT_VOLUME)
+        set(v) = prefs.edit().putInt("sadhanaVolume", v.coerceIn(MIN_VOLUME, MAX_VOLUME)).apply()
+
+    /** Saved sadhanas. The starters appear until the user saves their own list. */
+    var sadhanas: List<Sadhana>
+        get() = prefs.getString("sadhanas", null)?.let(SadhanaJson::decodeList) ?: Sadhana.STARTERS
+        set(v) = prefs.edit().putString("sadhanas", SadhanaJson.encodeList(v)).apply()
+
+    /** The sadhana in progress, or null. */
+    var session: Session?
+        get() = prefs.getString("session", null)?.let(SadhanaJson::decodeSession)
+        set(v) = prefs.edit().putString("session", v?.let(SadhanaJson::encodeSession)).apply()
+
+    /** The last sadhana that ended, until the user dismisses it. */
+    var summary: Summary?
+        get() = prefs.getString("summary", null)?.let(SadhanaJson::decodeSummary)
+        set(v) = prefs.edit().putString("summary", v?.let(SadhanaJson::encodeSummary)).apply()
+
+    /** True once the app has asked to show notifications, on the first sadhana. */
+    var askedNotifications: Boolean
+        get() = prefs.getBoolean("askedNotifications", false)
+        set(v) = prefs.edit().putBoolean("askedNotifications", v).apply()
 
     /** True once the app has asked for background running on first turn-on. */
     var askedSetup: Boolean
         get() = prefs.getBoolean("askedSetup", false)
         set(v) = prefs.edit().putBoolean("askedSetup", v).apply()
 
+    var weekday: Hours
+        get() = Hours(weekdayStart, weekdayEnd)
+        set(v) {
+            weekdayStart = v.startMin
+            weekdayEnd = v.endMin
+        }
+
+    var weekend: Hours
+        get() = Hours(weekendStart, weekendEnd)
+        set(v) {
+            weekendStart = v.startMin
+            weekendEnd = v.endMin
+        }
+
+    /** What the screen and the tile show for the hourly bell. */
+    fun homeState(now: ZonedDateTime): HomeState =
+        HomeState.of(enabled, pausedUntil, nextRing, now, plan(), sadhanaRunning = session != null)
+
     fun plan() = Plan(
         intervalMin = intervalMin,
         random = random,
-        weekday = Hours(weekdayStart, weekdayEnd),
-        weekend = Hours(weekendStart, weekendEnd),
+        weekday = weekday,
+        weekend = weekend,
         pausedUntilMillis = pausedUntil,
     )
 
     companion object {
         const val MIN_VOLUME = 5
+        const val MAX_VOLUME = 100
+        const val DEFAULT_VOLUME = 70
     }
 }

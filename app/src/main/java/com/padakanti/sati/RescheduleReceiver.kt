@@ -7,7 +7,8 @@ import android.content.Intent
 
 /**
  * Android clears alarms on restart, and a clock or time zone change makes the
- * set alarm wrong. Each of these events sets the next bell again.
+ * set alarm wrong. Each of these events sets the next bell and the next
+ * sadhana bell again.
  */
 class RescheduleReceiver : BroadcastReceiver() {
     private val actions = setOf(
@@ -24,5 +25,6 @@ class RescheduleReceiver : BroadcastReceiver() {
         // Passing the last bell keeps a small clock step backwards from
         // ringing the same bell twice.
         Alarms.reschedule(context, notBefore = Store(context).lastRing)
+        SadhanaController.rearm(context)
     }
 }

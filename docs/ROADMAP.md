@@ -23,7 +23,7 @@ A release comes out about every 3 to 4 weeks. This gives testers time to try eac
 |---|---|---|---|---|
 | 1.0 | 1 | 30 Oct 2026 | First release | Done |
 | 1.1.0 | 2 | 31 Oct 2026 | Quiet during Do Not Disturb, tests for the bell decision, instant notices, release signing | Done |
-| 1.2.0 | 3 | Mid Dec 2026 | Sadhana timer, quiet during phone calls | Planned |
+| 1.2.0 | 3 | 5 Nov 2026 | Sadhana timer, quiet during phone calls, code clean-up | Done |
 | 1.3.0 | 4 | Early Jan 2027 | Telugu and Hindi translations | Planned |
 | — | — | Mid Jan 2027 | Check that F-Droid can rebuild the same APK | Planned |
 | — | — | After 30 Jan 2027 | Resubmit to F-Droid | Planned |
@@ -45,6 +45,7 @@ The timer is for a timed practice, such as breathing exercises, chanting or yoga
 ### Decisions made
 
 - **Name.** The timer is called "Sadhana". The two tabs are "Bell" and "Sadhana".
+- **Spelling.** The label is written "Sadhana", with no accent marks, to match "Sati". Decided on 5 November 2026.
 - **Stages.** A sadhana is a list of 1 to 10 stages. Each stage has a length in minutes and an optional label, such as "Breathing". A "Split evenly" button divides a total length into 2, 3 or 4 equal stages.
 - **Strike counts.** The bell sound plays a different number of times for each event. The user can tell what happened without opening their eyes.
 
@@ -58,7 +59,7 @@ The timer is for a timed practice, such as breathing exercises, chanting or yoga
 - **Do Not Disturb.** Sadhana bells ring during Do Not Disturb and on silent mode. They play on the alarm channel for this reason.
 - **Volume.** Sadhana bells follow the phone's alarm volume. They have their own volume slider, stored apart from the hourly bell's volume, with a button to test the level. The slider can only go up to the phone's alarm volume. The app never changes the phone's own volume settings.
 - **Zero alarm volume.** If the phone's alarm volume is zero, the app shows a warning before the sadhana starts. During the sadhana, each bell vibrates instead of playing.
-- **Alarms turned off in Do Not Disturb.** Some people block alarms in their Do Not Disturb settings. The app shows a warning before the sadhana starts if this is the case.
+- **Alarms turned off in Do Not Disturb.** Some people block alarms in their Do Not Disturb settings. Then the bells play on the media channel, if Do Not Disturb allows media and the media volume is not zero. If neither can be heard, the Sadhana tab and the running screen show a notice with a button that opens the Do Not Disturb settings. Sati never changes Do Not Disturb itself. Adding Sati as a Do Not Disturb exception would not help, because exceptions cover notifications and the bells are played as sound. Found in the phone test on 5 November 2026, on a phone with alarms blocked in Do Not Disturb.
 - **Phone calls.** During a call, a sadhana bell vibrates instead of playing.
 - **Hourly bell.** The hourly bell is muted while a sadhana runs. It resumes when the sadhana ends.
 
@@ -68,18 +69,23 @@ The timer is for a timed practice, such as breathing exercises, chanting or yoga
 - **Saved sadhanas.** Saved setups show as cards with a Start button. Users name them. Three come with the app: 20 minutes in one stage, 60 minutes as 30 + 30, and 45 minutes with a bell every 15 minutes.
 - **Vibrate only.** Each sadhana can be set to vibrate instead of ringing, for shared rooms.
 - **Running screen.** The screen is dark and shows the time left, the stage label and a thin progress ring. The screen may turn off, and the bells do not depend on it.
-- **Notification.** A lock-screen notification shows a live countdown with Pause and Stop buttons.
-- **Safe stop.** Stop asks for confirmation, so a stray tap does not end the sadhana.
+- **Notification.** A lock-screen notification counts down to the next bell and has a Pause or Resume button. It has no Stop button, so a stray tap with closed eyes cannot end the sadhana.
+- **Safe stop.** End is in the app only, and it asks for confirmation.
 - **Summary.** When the sadhana ends, the app shows how long it lasted.
-- **Reliability.** Each bell is an exact alarm based on the phone's uptime clock, so a clock change does not move it. After a restart, the remaining bells are set again from the stored start time.
+- **Reliability.** Each bell is an alarm-clock alarm, which Android delivers on time even in deep sleep. Times are stored as UTC clock time, so a time-zone change does not move them. A manual clock change does move them; the uptime clock was dropped because it resets on restart. After a restart, the remaining bells are set again from the stored start time, and a sadhana whose time ran out while the phone was off ends quietly.
 
 ### Also in 1.2.0
 
-- **Quiet during phone calls.** The hourly bell makes no sound and no vibration during a call. Today it vibrates.
+- **Quiet during phone calls.** The hourly bell makes no sound and no vibration during a call.
+- **Code clean-up.** Changes from an audit for single source of truth, repetition and single responsibility:
+  - `BellController` and `SadhanaController` are the one place each that change the bell and the timer. The screen, the tile, the notification and the alarms all call them.
+  - `Ringer` takes the channel, volume and strike count as inputs. `PhoneState` reads the phone's sound state.
+  - `Alarms` keeps one alarm per slot, so a sadhana bell never replaces the hourly bell.
+  - Screen text that names a limit, such as 30 seconds or 20 MB, is built from the limit itself.
+  - `HourField`, `TimeText` and the sadhana timeline are pure Kotlin with unit tests. The test count went from 31 to 70.
+  - The screen is split into a Bell tab, a Sadhana tab, the editor and shared components.
+  - A sound import survives a screen rotation.
 
-### Open question
-
-- Should the label be written "Sadhana" or "Sādhana"? Recommendation: write "Sadhana". It is easier to type and search for, and it matches "Sati", which also has no accent marks.
 
 ## 1.3.0: Translations
 
@@ -135,4 +141,14 @@ Every release follows these steps in order.
 
 ## To check
 
-- Google announced that apps installed from outside Google Play will need a verified developer. It starts in a few countries in 2026 and widens in 2027. Its effect on GitHub, Obtainium and F-Droid installs in India needs checking before testers start and before January.
+### Google developer verification
+
+Checked on 5 November 2026 from Google's own pages, plus press where marked.
+
+- Google requires apps on certified Android devices to come from verified developers. Enforcement began on 30 September 2026 in Brazil, Indonesia, Singapore and Thailand only. Google says it expands globally "in 2027" and gives no date for India.
+- It covers devices on Android 7 and later, through Google Play services, so a Pixel 3 XL on Android 12 is in scope once India is included.
+- Users can still install unregistered apps through ADB, or through an "advanced flow": a one-time setup with developer options, a restart, a one-day wait, then a PIN or fingerprint.
+- Students and hobbyists can use a free limited account with no government ID. It allows a limited number of devices; Google's pages say 20 in one place and 50 in another.
+- Google says only package names "never seen before on Android" can be registered. `com.padakanti.sati` is already public, so it is unknown whether it can be registered.
+- F-Droid "unequivocally" advises developers against signing up for the program.
+- Decision needed before India's date is announced: register Sati with Google, or leave it unregistered and rely on the advanced flow. Friends installing now are not affected.

@@ -1,6 +1,5 @@
 package com.padakanti.sati
 
-import android.app.NotificationManager
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
@@ -15,133 +14,151 @@ import android.os.VibrationEffect
 import android.os.VibratorManager
 import android.util.Log
 
-/** Plays the bell, vibrates when the phone is silenced, and stays quiet during Do Not Disturb. */
+/** Plays bells and vibrations. What to do is decided in [BellAction] and [SadhanaBell]; this only carries it out. */
 object Ringer {
     /** Long sounds are cut here. A broadcast receiver may not run much longer. */
     const val MAX_PLAY_MS = 30_000L
+
+    /** Time between strikes of a sadhana bell. */
+    const val STRIKE_GAP_MS = 4_000L
+
     private const val TAG = "Sati"
 
-    fun ring(context: Context, done: () -> Unit) {
+    /** The hourly bell: plays, vibrates or stays quiet, following the phone's state. */
+    fun ringBell(context: Context, done: () -> Unit) = withWakeLock(context, done) { finish ->
+        act(context, PhoneState.bellAction(context), Channel.Notification, Store(context).volume, 1, finish)
+    }
+
+    /** A sadhana bell: [strike] decides how many times it sounds. */
+    fun ringSadhana(context: Context, strike: Strike, vibrateOnly: Boolean, done: () -> Unit) =
+        withWakeLock(context, done) { finish ->
+            val volume = Store(context).sadhanaVolume
+            when (PhoneState.sadhanaBell(context, vibrateOnly)) {
+                SadhanaBell.Alarm -> play(context, Channel.Alarm, volume, strike.times, finish)
+                SadhanaBell.Media -> play(context, Channel.Media, volume, strike.times, finish)
+                SadhanaBell.Vibrate -> {
+                    vibrate(context, strike.times)
+                    finish()
+                }
+            }
+        }
+
+    private fun act(context: Context, action: BellAction, channel: Channel, volume: Int, times: Int, finish: () -> Unit) {
+        when (action) {
+            BellAction.Quiet -> finish()
+            BellAction.Vibrate -> {
+                vibrate(context, times)
+                finish()
+            }
+            BellAction.Play -> play(context, channel, volume, times, finish)
+        }
+    }
+
+    /**
+     * Keeps the phone awake while the bell sounds. [done] runs exactly once,
+     * even if something fails, so the receiver is always released.
+     */
+    private fun withWakeLock(context: Context, done: () -> Unit, block: (finish: () -> Unit) -> Unit) {
         val wake = context.getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Sati:ring")
         wake.acquire(MAX_PLAY_MS + 5_000)
+        var finished = false
         val finish = {
-            if (wake.isHeld) wake.release()
-            done()
-        }
-        // The next bell is already scheduled, so a quiet bell does not end the chain.
-        when (action(context)) {
-            BellAction.Quiet -> finish()
-            BellAction.Vibrate -> {
-                vibrate(context)
-                finish()
+            if (!finished) {
+                finished = true
+                if (wake.isHeld) wake.release()
+                done()
             }
-            BellAction.Play -> play(context, finish)
+        }
+        try {
+            block(finish)
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not ring", e)
+            finish()
         }
     }
-
-    /** Reads the phone's state and decides; see [BellAction.of]. */
-    private fun action(context: Context): BellAction = BellAction.of(
-        doNotDisturb = isDoNotDisturb(context),
-        ringerSilent = isRingerSilent(context),
-        inCall = isInCall(context),
-        volumeZero = isVolumeZero(context),
-    )
-
-    /** True while Do Not Disturb is on, in any of its modes. */
-    fun isDoNotDisturb(context: Context): Boolean {
-        val filter = context.getSystemService(NotificationManager::class.java).currentInterruptionFilter
-        return filter != NotificationManager.INTERRUPTION_FILTER_ALL &&
-            filter != NotificationManager.INTERRUPTION_FILTER_UNKNOWN
-    }
-
-    /** True on silent or vibrate, or while a call rings or is active. */
-    fun isSilenced(context: Context): Boolean = isRingerSilent(context) || isInCall(context)
-
-    /** True when the bell would play but the notification volume is at zero. */
-    fun isInaudible(context: Context): Boolean =
-        !isDoNotDisturb(context) && !isSilenced(context) && isVolumeZero(context)
-
-    private fun isRingerSilent(context: Context): Boolean =
-        context.getSystemService(AudioManager::class.java).ringerMode != AudioManager.RINGER_MODE_NORMAL
-
-    // A bell over a ringing phone or in the ear during a call is worse
-    // than a short vibration.
-    private fun isInCall(context: Context): Boolean =
-        context.getSystemService(AudioManager::class.java).mode in setOf(
-            AudioManager.MODE_RINGTONE,
-            AudioManager.MODE_IN_CALL,
-            AudioManager.MODE_IN_COMMUNICATION,
-            AudioManager.MODE_CALL_SCREENING,
-        )
-
-    private fun isVolumeZero(context: Context): Boolean =
-        context.getSystemService(AudioManager::class.java).getStreamVolume(AudioManager.STREAM_NOTIFICATION) == 0
 
     /**
-     * Plays the chosen sound at the app's volume, within the notification
-     * volume, and lowers any music while it plays. Calls [done] once, when the
-     * sound ends, fails, or hits the cap. Returns a function that stops it early.
+     * Plays the chosen sound [times] times, [STRIKE_GAP_MS] apart, on [channel]
+     * at [volume] percent of that channel's volume. Lowers any music while it
+     * plays. Calls [done] once, when the last strike ends, on failure, or at
+     * [MAX_PLAY_MS]. Returns a function that stops it early.
      */
-    fun play(context: Context, done: () -> Unit): () -> Unit {
+    fun play(context: Context, channel: Channel, volume: Int, times: Int = 1, done: () -> Unit): () -> Unit {
         val audio = context.getSystemService(AudioManager::class.java)
         val attrs = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+            .setUsage(channel.usage)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
         val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
             .setAudioAttributes(attrs)
             .build()
-        val player = MediaPlayer()
         val handler = Handler(Looper.getMainLooper())
+        val players = mutableListOf<MediaPlayer>()
         var finished = false
+        var completed = 0
         val finish = {
             if (!finished) {
                 finished = true
                 handler.removeCallbacksAndMessages(null)
-                runCatching { player.stop() }
-                player.release()
+                players.forEach {
+                    runCatching { it.stop() }
+                    it.release()
+                }
                 audio.abandonAudioFocusRequest(focus)
                 done()
             }
         }
+        val fail = { what: String ->
+            // A broken sound file must not leave the user without a reminder.
+            Log.w(TAG, "$what; vibrating instead")
+            vibrate(context, times)
+            finish()
+        }
         try {
-            player.setAudioAttributes(attrs)
-            Sounds.setSource(context, player)
-            player.setOnCompletionListener { finish() }
-            player.setOnErrorListener { _, what, extra ->
-                // A file can load and still fail while playing. Vibrate, so
-                // the user still gets the reminder.
-                Log.w(TAG, "Sound failed while playing ($what, $extra); vibrating instead")
-                vibrate(context)
-                finish()
-                true
+            val gain = gain(volume)
+            repeat(times) {
+                val player = MediaPlayer()
+                players += player
+                player.setAudioAttributes(attrs)
+                Sounds.setSource(context, player)
+                player.setOnCompletionListener { if (++completed == times) finish() }
+                player.setOnErrorListener { _, what, extra ->
+                    fail("Sound failed while playing ($what, $extra)")
+                    true
+                }
+                player.prepare()
+                player.setVolume(gain, gain)
             }
-            player.prepare()
-            val gain = gain(Store(context).volume)
-            player.setVolume(gain, gain)
             audio.requestAudioFocus(focus)
-            player.start()
+            players.forEachIndexed { i, player ->
+                handler.postDelayed({ if (!finished) player.start() }, i * STRIKE_GAP_MS)
+            }
             handler.postDelayed({ finish() }, MAX_PLAY_MS)
         } catch (e: Exception) {
-            // A broken sound file must not leave the user without a reminder.
-            Log.w(TAG, "Could not play the sound; vibrating instead", e)
-            vibrate(context)
-            finish()
+            fail("Could not play the sound: $e")
         }
         return { handler.post { finish() } }
     }
 
     /** Ears hear loudness on a curve, so the slider's percent is squared. */
     private fun gain(percent: Int): Float {
-        val p = percent.coerceIn(Store.MIN_VOLUME, 100) / 100f
+        val p = percent.coerceIn(Store.MIN_VOLUME, Store.MAX_VOLUME) / 100f
         return p * p
     }
 
-    /** Two firm pulses that can be felt in a pocket. Alarm usage lets them through silent mode. */
-    fun vibrate(context: Context) {
+    /**
+     * Firm pulses that can be felt in a pocket, one pair per strike. Alarm
+     * usage lets them through silent mode.
+     */
+    fun vibrate(context: Context, times: Int = 1) {
         val vibrator = context.getSystemService(VibratorManager::class.java).defaultVibrator
-        val effect = VibrationEffect.createWaveform(longArrayOf(0, 300, 250, 300), -1)
+        val pattern = mutableListOf(0L)
+        repeat(times) {
+            if (it > 0) pattern += 700L
+            pattern += listOf(300L, 250L, 300L)
+        }
+        val effect = VibrationEffect.createWaveform(pattern.toLongArray(), -1)
         if (Build.VERSION.SDK_INT >= 33) {
             vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM))
         } else {

@@ -17,6 +17,7 @@ ICONS = [
     "bell", "bell-off", "pause", "play", "square", "shuffle",
     "sunrise", "music", "volume-2", "volume-x", "triangle-alert",
     "battery", "alarm-clock", "snowflake", "vibrate", "moon",
+    "timer", "plus", "pencil", "trash-2", "x",
 ]
 OUT = Path(__file__).resolve().parent.parent / "app/src/main/res/drawable"
 NS = "{http://www.w3.org/2000/svg}"

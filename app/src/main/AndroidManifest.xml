@@ -12,6 +12,8 @@
         android:name="android.permission.SCHEDULE_EXACT_ALARM"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Android 13 and later ask before showing the sadhana countdown notification. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Lets the app check that the "unused apps" settings screen exists.
          Android 11 and later hide other apps' screens unless declared here. -->
@@ -46,6 +48,17 @@
              Settings and sounds live in device-protected storage for this. -->
         <receiver
             android:name=".BellReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <receiver
+            android:name=".SadhanaReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <!-- The Pause and Resume buttons on the sadhana notification. -->
+        <receiver
+            android:name=".SadhanaActionReceiver"
             android:directBootAware="true"
             android:exported="false" />
 

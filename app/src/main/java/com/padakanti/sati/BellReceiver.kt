@@ -13,13 +13,14 @@ class BellReceiver : BroadcastReceiver() {
         store.lastRing = fired
         // A bell delivered very late, for example after the phone was off,
         // must not ring outside waking hours.
-        val ring = store.enabled && Scheduler.shouldRing(ZonedDateTime.now(), store.plan())
+        // The hourly bell stays quiet while a sadhana runs.
+        val ring = store.enabled && store.session == null && Scheduler.shouldRing(ZonedDateTime.now(), store.plan())
 
         // Set the next bell first, so one failed ring cannot stop the chain.
         Alarms.reschedule(context, notBefore = fired)
 
         if (!ring) return
         val pending = goAsync()
-        Ringer.ring(context.applicationContext) { pending.finish() }
+        Ringer.ringBell(context.applicationContext) { pending.finish() }
     }
 }

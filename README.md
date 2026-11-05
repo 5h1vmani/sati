@@ -3,10 +3,10 @@
 Sati is an Android app that rings a bell now and then during your waking hours. Each bell is a moment to come back to the present. The name is the Pali word for mindfulness.
 
 <p>
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="180" alt="Sati is on: the next bell time in large type, with pause buttons">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="180" alt="Sati is paused until a set time, with a Resume now button">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="180" alt="Settings: waking hours for weekdays and weekends, and the bell sound with a volume slider">
-  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="180" alt="Sati is off, with a Turn on button">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="180" alt="The Bell tab: Sati is on, with the next bell time in large type and pause buttons">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/7.png" width="180" alt="A running sadhana: a countdown to the next bell inside a progress ring, with the stage name">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" width="180" alt="The Sadhana tab: saved sadhanas with Start buttons, and the sadhana bell settings">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" width="180" alt="The sadhana editor: a name, two 30-minute stages with labels, and a settling time">
 </p>
 
 ## Features
@@ -15,10 +15,19 @@ Sati is an Android app that rings a bell now and then during your waking hours. 
 - An interval from 15 minutes to 2 hours.
 - Separate waking hours for weekdays and weekends.
 - Pause for one or two hours. The bell starts again by itself.
-- On silent, the phone vibrates instead. During Do Not Disturb, Sati stays quiet.
+- On silent, the phone vibrates instead. During Do Not Disturb or a phone call, Sati stays quiet.
 - The built-in bell or your own sound, with its own volume.
 - A Quick Settings tile to turn the bell on or off.
 - It keeps ringing after a restart, even before the first unlock.
+
+Sadhana is a timer for a timed practice, such as breathing exercises, chanting or yoga.
+
+- Split a practice into up to 10 stages, each with an optional label.
+- The bell rings once at the start, twice when a stage changes and three times at the end, so you can tell them apart with your eyes closed.
+- Sadhana bells ring through Do Not Disturb and silent mode, at your alarm volume, with their own volume slider. If Do Not Disturb blocks alarms, they play at your media volume instead.
+- An optional settling time before the start bell, and a vibrate-only mode for shared rooms.
+- A lock-screen countdown to the next bell, with a Pause button.
+- The hourly bell stays quiet while a sadhana runs.
 
 Sati has no internet permission. It collects nothing.
 
@@ -55,10 +64,13 @@ This builds an unsigned release APK, which is how F-Droid builds it. The maintai
 ## Project layout
 
 - `app/src/main/java/com/padakanti/sati/Scheduler.kt` picks the next bell time. It has no Android code and is unit-tested.
-- `Alarms.kt` keeps exactly one exact alarm set for the next bell.
-- `BellAction.kt` decides whether a bell plays, vibrates or stays quiet. It has no Android code and is unit-tested.
-- `Ringer.kt` reads the phone's state, then plays the bell or vibrates.
-- `ui/` holds the Compose screen and the theme.
+- `Sadhana.kt` holds the timer's stages, its bell timeline and a running session. It has no Android code and is unit-tested.
+- `BellAction.kt` decides whether a bell plays, vibrates or stays quiet. `HourField.kt` and `TimeText.kt` hold hour editing and the words for times. All three are unit-tested.
+- `BellController.kt` and `SadhanaController.kt` are the one place each that change the hourly bell and the timer.
+- `Alarms.kt` keeps one alarm per slot: the next hourly bell, and the next sadhana bell.
+- `PhoneState.kt` reads Do Not Disturb, the ringer mode and the volumes. `Ringer.kt` plays the bell or vibrates.
+- `Notifier.kt` shows the sadhana countdown on the lock screen.
+- `ui/` holds the Bell tab, the Sadhana tab, the sadhana editor and the theme.
 - `tools/lucide_to_vector.py` converts Lucide icons into Android vector drawables.
 - `tools/contrast.py` checks that every colour pair in the theme meets WCAG AA contrast.
 - `tools/release.sh` builds and signs a release APK.

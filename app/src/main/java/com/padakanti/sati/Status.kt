@@ -11,8 +11,9 @@ import java.util.Locale
 /** One short line for the Quick Settings tile. */
 object Status {
     fun line(context: Context, store: Store): String =
-        when (val home = HomeState.of(store.enabled, store.pausedUntil, store.nextRing, ZonedDateTime.now(), store.plan())) {
+        when (val home = store.homeState(ZonedDateTime.now())) {
             HomeState.Off -> "Off"
+            HomeState.Muted -> "Quiet during sadhana"
             is HomeState.Paused -> "Paused until ${time(context, home.until)}"
             is HomeState.On -> if (home.next > 0) "Next ${time(context, home.next)}" else "On"
         }

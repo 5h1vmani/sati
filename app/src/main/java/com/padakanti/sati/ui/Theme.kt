@@ -36,7 +36,8 @@ private val Light = lightColorScheme(
     error = Color(0xFFB3261E),
 )
 
-private val Dark = darkColorScheme(
+/** The dark colours. The running sadhana uses them in both themes, so the screen stays dim. */
+internal val Dark = darkColorScheme(
     primary = Color(0xFFF0A884),
     onPrimary = Color(0xFF4A1F0B),
     primaryContainer = Color(0xFF7E4227),

@@ -22,4 +22,10 @@ class HomeStateTest {
 
     @Test fun nightShowsResting() =
         assertEquals(HomeState.On(ms(t(7, 10)), true), HomeState.of(true, 0, ms(t(7, 10)), t(3, 0), plan))
+
+    @Test fun sadhanaMutesTheBell() =
+        assertEquals(HomeState.Muted, HomeState.of(true, ms(t(12, 0)), ms(t(12, 30)), t(10, 0), plan, sadhanaRunning = true))
+
+    @Test fun offWinsOverASadhana() =
+        assertEquals(HomeState.Off, HomeState.of(false, 0, 0, t(10, 0), plan, sadhanaRunning = true))
 }

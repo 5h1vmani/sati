@@ -1,0 +1,2 @@
+New: Sadhana, a timer for a timed practice in up to 10 stages. The bell rings once at the start, twice when a stage changes and three times at the end. Sadhana bells ring through Do Not Disturb at your alarm volume, with their own volume slider.
+The hourly bell now stays quiet during phone calls and while a sadhana runs.

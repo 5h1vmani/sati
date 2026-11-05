@@ -7,6 +7,9 @@ sealed interface HomeState {
     /** The bell is turned off. */
     data object Off : HomeState
 
+    /** The bell is on, but quiet while a sadhana runs. It comes back when the sadhana ends. */
+    data object Muted : HomeState
+
     /** The user paused the bell. It resumes by itself at [until]. */
     data class Paused(val until: Long) : HomeState
 
@@ -18,9 +21,17 @@ sealed interface HomeState {
     data class On(val next: Long, val restingNow: Boolean) : HomeState
 
     companion object {
-        fun of(enabled: Boolean, pausedUntil: Long, nextRing: Long, now: ZonedDateTime, plan: Plan): HomeState =
+        fun of(
+            enabled: Boolean,
+            pausedUntil: Long,
+            nextRing: Long,
+            now: ZonedDateTime,
+            plan: Plan,
+            sadhanaRunning: Boolean = false,
+        ): HomeState =
             when {
                 !enabled -> Off
+                sadhanaRunning -> Muted
                 pausedUntil > now.toInstant().toEpochMilli() -> Paused(pausedUntil)
                 else -> On(nextRing, restingNow = !Scheduler.shouldRing(now, plan.copy(pausedUntilMillis = 0)))
             }

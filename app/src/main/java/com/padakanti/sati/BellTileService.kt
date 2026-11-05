@@ -14,11 +14,7 @@ class BellTileService : TileService() {
     }
 
     override fun onClick() {
-        val store = Store(this)
-        store.enabled = !store.enabled
-        // Turning the bell on again also ends any pause.
-        if (store.enabled) store.pausedUntil = 0
-        Alarms.reschedule(this)
+        BellController.setEnabled(this, !Store(this).enabled)
         update()
     }
 

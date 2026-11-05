@@ -35,11 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.padakanti.sati.R
 import com.padakanti.sati.Sadhana
 import com.padakanti.sati.SadhanaBell
+import com.padakanti.sati.SadhanaCheck
 import com.padakanti.sati.SadhanaJson
 import com.padakanti.sati.Session
 import com.padakanti.sati.Stage
@@ -50,7 +52,7 @@ import kotlinx.coroutines.delay
 /** Keeps the open editor across a screen rotation. Empty string means no editor. */
 private val EditingSaver = Saver<Sadhana?, String>(
     save = { it?.let { s -> SadhanaJson.encodeList(listOf(s)) } ?: "" },
-    restore = { json -> if (json.isEmpty()) null else SadhanaJson.decodeList(json)?.firstOrNull() },
+    restore = { json -> if (json.isEmpty()) null else SadhanaJson.decodeDraft(json) },
 )
 
 /** The timer for a timed practice: saved sadhanas, the running one, and its bells. */
@@ -84,13 +86,24 @@ internal fun SadhanaTab(ui: SatiUi, actions: SatiActions) {
         ui.sadhanas.forEach { s ->
             SadhanaCard(s, onStart = { actions.startSadhana(s) }, onEdit = { editing = s })
         }
+        // At the limit, every export can still be imported back, so no more can be added.
+        val full = ui.sadhanas.size >= SadhanaCheck.MAX_SADHANAS
         OutlinedButton(
             onClick = { editing = Sadhana("s-${System.currentTimeMillis()}", "", listOf(Stage(20))) },
+            enabled = !full,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(painterResource(R.drawable.lucide_plus), null, Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
             Text("New sadhana")
+        }
+        if (full) {
+            Text(
+                pluralStringResource(R.plurals.sadhana_limit, SadhanaCheck.MAX_SADHANAS, SadhanaCheck.MAX_SADHANAS),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
         }
         BellsCard(ui, actions)
         Text(

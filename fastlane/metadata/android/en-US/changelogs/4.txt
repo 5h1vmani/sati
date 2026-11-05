@@ -1,0 +1,1 @@
+New: a practice log in a third tab, Log. Keep a list of your practices, counted in minutes, cycles or done, with an optional daily target. Today shows what is done. Log an entry in one or two taps, with a focus score from 1 to 10. Add past days to type in old records. Export everything to one file and import it back, or import a spreadsheet of paper records.

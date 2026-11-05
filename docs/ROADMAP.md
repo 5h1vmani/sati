@@ -24,9 +24,13 @@ A release comes out about every 3 to 4 weeks. This gives testers time to try eac
 | 1.0 | 1 | 30 Oct 2026 | First release | Done |
 | 1.1.0 | 2 | 31 Oct 2026 | Quiet during Do Not Disturb, tests for the bell decision, instant notices, release signing | Done |
 | 1.2.0 | 3 | 5 Nov 2026 | Sadhana timer, quiet during phone calls, code clean-up | Done |
-| 1.3.0 | 4 | Early Jan 2027 | Telugu and Hindi translations | Planned |
-| — | — | Mid Jan 2027 | Check that F-Droid can rebuild the same APK | Planned |
+| — | — | 5 Nov 2026 | Check that F-Droid can rebuild the same APK, on 1.2.0 | Done, one fix |
+| 1.3.0 | 4 | Early Dec 2026 | Practice log, Today, export and import | Planned |
+| — | — | Early Dec 2026 | Repeat the rebuild check on 1.3.0, the first build with a database | Planned |
+| 1.4.0 | 5 | Late Dec 2026 | Timer link, evening reminder, launcher shortcuts | Planned |
+| 1.5.0 | 6 | Late Jan 2027 | Analytics and streaks | Planned |
 | — | — | After 30 Jan 2027 | Resubmit to F-Droid | Planned |
+| 1.6.0 | 7 | Feb 2027 | Telugu and Hindi translations | Planned |
 
 ## 1.1.0
 
@@ -87,25 +91,159 @@ The timer is for a timed practice, such as breathing exercises, chanting or yoga
   - A sound import survives a screen rotation.
 
 
-## 1.3.0: Translations
+## Practice log plan
 
-- Telugu and Hindi versions of every string in the app and the store listing.
+The practice log records every practice, not only the ones timed in Sati, such as Hatha Yoga and Kriya Yoga. It is a third tab, "Log", next to "Bell" and "Sadhana". It is built across three releases: 1.3.0, 1.4.0 and 1.5.0. Decided on 5 November 2026, then corrected the same day after two independent audits of the plan.
+
+### Rules for all three releases
+
+- **Text.** All new screen text goes into string resources from the start, as whole sentences with plural forms. Pure Kotlin functions return numbers and dates, never English sentences. This keeps the translation in 1.6.0 to new text only.
+- **One owner.** `LogController` is the one place that writes the log. Today, the entry form, the timer link, import and delete all call it, as the screen calls `BellController` and `SadhanaController`.
+- **Pure logic.** The day boundary, Today, the export format, the import rules and every analytics view are pure Kotlin functions with unit tests, like `Sadhana.kt`.
+
+## 1.3.0: Practice log
+
+### Rebuild check on 1.2.0
+
+Done on 5 November 2026 with `apksigcopier compare`, the check F-Droid runs.
+
+- The published 1.2.0 APK and a fresh build of the v1.2.0 tag differ in one file only, `META-INF/version-control-info.textproto`. AGP writes the git commit into it. The published APK records commit `b814805`, the commit before the release, because `tools/release.sh` builds before the release commit is made.
+- The fix sets `vcsInfo.include = false` for release builds. Every other file was identical.
+- 1.2.0 itself cannot be reproduced, so the F-Droid resubmission must start from 1.3.0 or later.
+- `tools/repro_check.sh` builds the working tree in two different folders and checks that the APKs are identical. Given a signed APK, it also runs `apksigcopier compare`. It runs before every release.
+
+### First step: prove the database
+
+The log is planned as a Room database. Room is Android's standard library for SQLite. It needs KSP, a code generator, and the build has no KSP yet. Nobody has checked that KSP works with the built-in Kotlin of AGP 9.4.
+
+- On a branch, Room and KSP are added with pinned versions, and the app is built twice from clean. The two APKs must be identical. Done on 5 November 2026: Room 2.8.5 and KSP 2.3.13 build with AGP 9.4's built-in Kotlin, and two builds in different folders were identical. The check runs again on the finished 1.3.0 build, because R8 removes Room while no code uses it.
+- If either check fails, the log uses Android's built-in SQLite classes instead, with no code generator.
+- Room's schema file is committed. The first change to the tables comes with a migration and a test on the phone.
+
+### Practices
+
+- The user keeps a list of practices, such as Sukha Kriya, AUM Chanting, Hatha Yoga and Kriya Yoga. Every practice is expected every day.
+- Each practice has one measure: minutes, a count of cycles, or done. The measure can change only while the practice has no entries, because old entries would no longer match.
+- A practice can have an optional daily target, such as 108 cycles or 30 minutes. The target changes only what the screen shows. Any entry counts as done, so 80 of 108 counts and still shows as 80 of 108.
+- **Archive.** An archived practice leaves Today and keeps its history. It can be brought back. Each archive and return is stored with its date, because the analytics in 1.5.0 skip the archived days.
+- **Delete.** Deleting a practice also deletes its entries. The app first says how many entries will go and which sadhanas link to the practice, and it asks for confirmation.
+
+### Entries
+
+- An entry has a practice, a day, a value, an optional focus score and an optional note. Each entry has a unique ID.
+- **Day.** The day is stored on the entry as a date when the entry is written. It is never worked out again later, so travel or a time-zone change does not move old entries. A new entry gets today. A day ends at 3 AM local time, so a sitting at 1 AM belongs to the day before. The 3 AM rule is fixed, not a setting.
+- **Past days.** The entry form can choose any past day, so paper records can be typed in.
+- **Time.** The moment of writing is stored for sorting only. The screen does not ask for a time.
+- **Focus.** Focus is a score from 1 to 10, shown as a row of ten buttons. It is optional. Percentages from the paper notebook convert by dividing by 10 and rounding, with 1 as the lowest score.
+- **Several entries a day.** The values add up. The day's focus is the average of the entries that have a score.
+- **Edit and delete.** Any entry can be changed or deleted. A delete can be undone for a few seconds.
+
+### Today
+
+The Log tab opens on Today. It lists every active practice with its progress toward the target.
+
+- A done practice is logged with one tap on its row.
+- For minutes or cycles, a tap opens a short form. The value is filled in with the target, or with the last value if there is no target. A tap on a focus button saves the entry. A "No score" button saves it without focus. The note is hidden behind "Add note".
+- The usual entry therefore takes two taps.
+
+### Export and import
+
+The app sets `allowBackup="false"` and has no internet permission, so the export is the only backup.
+
+- **Export.** One ZIP file holds the practices, the entries and the saved sadhanas, including their stage links. The practices and entries are CSV files, so they open in a spreadsheet. The user chooses where the file is saved.
+- **Import.** The whole file is checked before anything changes, and the import runs as one transaction. A file with an error changes nothing and the app says which line failed. The saved sadhanas live in the settings, not in the database, so they are written right after the transaction. If the app is killed between the two, a second import adds the missing sadhanas.
+- **No duplicates.** Rows with an ID merge by that ID. A row whose ID already exists is skipped, so importing the same file twice changes nothing.
+- **Paper records.** Import also reads a CSV made by hand with four columns: date, practice, value and focus in percent. These rows have no ID. A row with the same practice, day and value as an existing entry is skipped. A practice name the app does not know creates a new practice, and the app asks for its measure.
+- **Export reminder.** The Log tab shows when the last export was made. After 30 days it asks for a new one.
+
+## 1.4.0: Timer link, reminder and shortcuts
+
+### Timer link
+
+- In the sadhana editor, each stage can be linked to a practice from the list. Only practices measured in minutes or done can be linked, because a stage knows only time.
+- **Values.** A minutes practice gets the whole minutes actually sat in that stage, rounded down. Pauses do not count. A stage with less than 1 minute logs nothing. A done practice is logged as done when its stage is reached.
+- **Safe writing.** When a sadhana ends, `finish()` saves the stage results in device-protected storage, next to the summary. `finish()` can run at boot before the first unlock, when the log cannot be opened. The next time the app opens, `LogController` moves the results into the log. Each result has an ID, so it is never added twice. A new sadhana start does not delete results that have not moved yet.
+- **Focus.** The summary asks for the focus of each new entry, and the user can skip it. The answer only updates the entries already in the log, so closing the app loses nothing.
+- **Deleted or archived practices.** Deleting or archiving a practice removes its stage links. The confirmation names the sadhanas affected.
+- **Saved data.** The new link field is read as optional, so sadhanas saved by 1.2.0 still load, and so does a sadhana running during the update. A unit test loads saved data in the 1.2.0 format. It needs `org.json:json` as a test dependency, because Android's own classes do not run in plain unit tests.
+
+### Evening reminder
+
+- One notification comes at a time the user chooses when today's list is not complete. It names what is left.
+- It has its own alarm slot, its own notification channel at default importance, its own notification ID and its own request code. It never replaces the hourly bell, a sadhana bell or the sadhana notification.
+- Notification permission is asked when the reminder is switched on, not only at the first sadhana.
+- The receiver reads the log with `goAsync`. If the phone has not been unlocked since a restart, the reminder is skipped that day.
+- `RescheduleReceiver` sets the reminder again after a restart, an update or a clock change.
+- If a sadhana runs at the reminder time, the reminder waits and comes when the sadhana ends.
+- A notification follows Do Not Disturb on its own, so no extra code is needed for it.
+
+### Launcher shortcuts
+
+- A long press on the Sati icon shows "Today" and the three sadhanas started most recently. "Log a practice" was merged into "Today", because both opened the same screen. The app stores when each sadhana was last started.
+- Most launchers show 4 shortcuts. This is checked on the Pixel launcher only.
+- A sadhana shortcut opens the app and starts the sadhana through the same path as the Start button. The zero-volume warning and the permission request then still apply. If a sadhana is already running, the shortcut opens the running screen instead.
+- The shortcuts are updated when a sadhana is renamed or deleted.
+
+## 1.5.0: Analytics
+
+Analytics come after the log has collected about two months of real entries. The views are designed against that data, not against invented data.
+
+### Definitions
+
+- **Active day.** A day counts for a practice when the practice was active. It is active from the earlier of its creation and its first entry, except while it is archived.
+- **Done.** A practice is done on a day when it has at least one entry on that day.
+- **Today.** Today never counts as missed. It counts as done once it has an entry.
+
+### Views
+
+- **Week strip.** Seven dots at the top of Today. Each dot shows the share of practices done that day, out of the practices active that day.
+- **Calendar.** A month grid per practice marks each day the practice was done.
+- **Streak.** The number of active days in a row that the practice was done, up to today. Archived days neither break the streak nor add to it.
+- **Last 30 days.** "Done on N of M days", where M is the number of active days in the last 30. For a practice older than 30 days, M is 30.
+- **Weekday pattern.** The share of days done for each weekday. It appears once the practice has 4 weeks of active days. One sentence names the weakest weekday only when it is at least 15 percentage points below the practice's average. If there is a tie, or every day is done, there is no sentence.
+- **Focus trend.** The weekly average focus per practice over the last 12 weeks. Each scored entry counts equally. A week with no scored entries shows a gap. Weekly averages are used because daily scores change too much to read.
+- **Technical.** The database only loads the entries for a date range. Each definition above has unit tests for these edge cases.
+
+### Cut after the audits
+
+- **Focus patterns** by time of day and session length. With one person's fixed routine, most groups would never collect enough entries, and the entry time does not record when the practice happened.
+- **Month review.** It repeated what the calendar, the streak and the 30-day count already show.
+
+## 1.6.0: Translations
+
+- About 100 English texts are written directly in the Kotlin code, and strings.xml holds only 2. These existing texts move into string resources first.
+- Then come Telugu and Hindi versions of every string in the app and the store listing.
 - A native speaker must review each translation before release.
+- This was planned for 1.3.0. It moved after the log and analytics, so that their new text is translated once.
+
+## Technical direction
+
+Decided on 5 November 2026.
+
+- **Kotlin only.** Sati has no server, so it has no backend. A Rust core would add a second language, the Android NDK, native libraries for each processor type and a harder reproducible build for F-Droid. Sati does no heavy computation, so Rust would bring no benefit.
+- **Pure logic stays free of Android code.** The timer model, the bell decisions, the time text and the analytics import nothing from `android.*`. This makes them testable on the Mac.
+- **An iOS version, if it comes,** would use Kotlin Multiplatform. The pure logic would move to a shared module. Some work comes with that move:
+  - The pure files use `java.time`, which exists only on the JVM. They would move to kotlinx-datetime.
+  - `SadhanaJson.kt` uses org.json, a JVM library that iOS lacks. It would move to kotlinx.serialization.
+  - Room supports iOS from version 2.7, with its bundled SQLite driver and suspend functions. The log in 1.3.0 uses only those parts, so it can move unchanged.
+  - Compose Multiplatform can share the screens. The screens use Android types such as `Context`, so this needs some changes.
+  - The alarms, sound, notifications, tile and shortcuts would be rewritten for iOS in any case.
+- The project is not converted now, because nobody uses an iOS version yet.
 
 ## Later ideas
 
 These are not scheduled yet.
 
 - **Open sadhana.** No end time, an optional bell every N minutes, and the total time shown when it stops.
-- **Launcher shortcuts.** A long press on the Sati icon starts a saved sadhana.
-- **Practice log.** Date, length and total minutes per week. It will have no streaks and no badges, because those turn practice into a score.
+- **Spoken stage names.** The phone says the stage label after the stage-change strikes.
+- **Breath pacer, japa counter and tanpura drone.** Suggested on 5 November 2026 for breathing and chanting stages.
 
 ## F-Droid resubmission
 
 F-Droid closed the first request on 30 October 2026, because its policy asks for 3 months of active development. See [merge request 54974](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/54974).
 
 - The resubmission uses reproducible builds. F-Droid builds the app from source, checks that the result matches the developer-signed APK, and then ships the developer's signature. Users can then move between GitHub, F-Droid and other sources without reinstalling.
-- In mid January, a test checks that the build is reproducible. Some Android build outputs can differ between builds, so this needs checking early.
+- A test checks that the build is reproducible: first on 1.2.0 in mid November, as a baseline, and again on 1.3.0, the first build with a database. Some Android build outputs can differ between builds. A failure found in late January would push the resubmission past 30 January.
 - The metadata draft in `fdroid/` needs the newest version, its commit and the signing details before resubmission.
 
 ### AI-written code
@@ -131,6 +269,7 @@ Testers install from GitHub Releases, starting with the first signed version.
 Every release follows these steps in order.
 
 1. Unit tests, lint and a release build pass.
+1. `tools/repro_check.sh` passes.
 2. The build is tested on a real phone.
 3. The changelog file for the new versionCode is written.
 4. versionCode and versionName are raised.

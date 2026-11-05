@@ -29,6 +29,11 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import com.padakanti.sati.log.LogController
+import com.padakanti.sati.log.LogDay
+import com.padakanti.sati.log.LogExport
+import com.padakanti.sati.log.LogImportState
+import com.padakanti.sati.log.Measure
 import com.padakanti.sati.ui.Preview
 import com.padakanti.sati.ui.SatiActions
 import com.padakanti.sati.ui.SatiScreen
@@ -36,6 +41,7 @@ import com.padakanti.sati.ui.SatiTheme
 import com.padakanti.sati.ui.SatiUi
 import com.padakanti.sati.ui.Tab
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
 
@@ -68,6 +74,14 @@ class MainActivity : ComponentActivity(), SatiActions {
         if (uri != null) importSound(uri)
     }
 
+    private val saveLog = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        if (uri != null) runExport(uri)
+    }
+
+    private val pickLogFile = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) runImport(uri)
+    }
+
     // The sadhana starts whatever the answer. Without notifications it has no lock-screen countdown.
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -76,6 +90,10 @@ class MainActivity : ComponentActivity(), SatiActions {
         enableEdgeToEdge()
         store = Store(this)
         store.prefs.registerOnSharedPreferenceChangeListener(listener)
+        // A log task that fails in an unexpected way, such as a full disk, shows a message. The export and
+        // import tasks clear their own busy state, so a failed entry save cannot enable them early.
+        val app = applicationContext
+        LogController.onFailure = { Memory.message = app.getString(R.string.log_error_generic) }
         tab = savedInstanceState?.getString(KEY_TAB)?.let(Tab::valueOf) ?: Tab.Bell
         if (savedInstanceState == null) openTabFrom(intent)
         setContent {
@@ -87,7 +105,7 @@ class MainActivity : ComponentActivity(), SatiActions {
                         delay(15_000)
                     }
                 }
-                val ui = remember(tick, now, preview, Memory.importing, Memory.message) { buildUi(now) }
+                val ui = remember(tick, now, preview, Memory.importing, Memory.message, Memory.logBusy, Memory.logImport) { buildUi(now) }
                 SatiScreen(ui = ui, now = now, tab = tab, onTab = { tab = it }, actions = this)
             }
         }
@@ -169,6 +187,9 @@ class MainActivity : ComponentActivity(), SatiActions {
             alarmVolumeZero = PhoneState.isVolumeZero(this, Channel.Alarm),
             alarmsBlocked = PhoneState.alarmsBlocked(this),
             sadhanaBell = PhoneState.sadhanaBell(this, vibrateOnly = false),
+            logLastExport = store.lastLogExport,
+            logBusy = Memory.logBusy,
+            logImport = Memory.logImport,
         )
     }
 
@@ -314,6 +335,11 @@ class MainActivity : ComponentActivity(), SatiActions {
 
     override fun saveSadhana(sadhana: Sadhana) {
         val list = store.sadhanas
+        // The screen hides "New sadhana" at the limit. This keeps the limit even so.
+        if (list.none { it.id == sadhana.id } && list.size >= SadhanaCheck.MAX_SADHANAS) {
+            Memory.message = resources.getQuantityString(R.plurals.sadhana_limit, SadhanaCheck.MAX_SADHANAS, SadhanaCheck.MAX_SADHANAS)
+            return
+        }
         store.sadhanas = if (list.any { it.id == sadhana.id }) list.map { if (it.id == sadhana.id) sadhana else it } else list + sadhana
     }
 
@@ -323,6 +349,73 @@ class MainActivity : ComponentActivity(), SatiActions {
 
     override fun dismissSummary() {
         store.summary = null
+    }
+
+    // ---------- SatiActions: practice log ----------
+
+    override fun exportLog() {
+        if (Memory.logBusy) return
+        saveLog.launch(LogExport.fileName(LogDay.of(System.currentTimeMillis(), ZoneId.systemDefault())))
+    }
+
+    override fun importLog() {
+        if (Memory.logBusy) return
+        // Spreadsheet programs label a CSV file in several ways, so the list is wide.
+        pickLogFile.launch(
+            arrayOf(
+                "application/zip", "application/x-zip-compressed", "text/csv", "text/comma-separated-values",
+                "application/csv", "application/vnd.ms-excel", "text/plain", "application/octet-stream",
+            ),
+        )
+    }
+
+    // The work runs in the controller's scope, which outlives this activity, so a screen rotation does not stop it.
+    private fun runExport(uri: Uri) {
+        val app = applicationContext
+        Memory.logBusy = true
+        LogController.scope.launch {
+            try {
+                val entries = LogController.export(app, uri)
+                Memory.message = if (entries == null) {
+                    app.getString(R.string.log_export_failed)
+                } else {
+                    app.resources.getQuantityString(R.plurals.log_exported, entries, entries)
+                }
+            } finally {
+                Memory.logBusy = false
+            }
+        }
+    }
+
+    private fun runImport(uri: Uri) {
+        val app = applicationContext
+        Memory.logBusy = true
+        Memory.logImport = LogImportState.Idle
+        LogController.scope.launch {
+            try {
+                Memory.logImport = LogController.startImport(app, uri)
+            } finally {
+                Memory.logBusy = false
+            }
+        }
+    }
+
+    override fun finishLogImport(measures: Map<String, Measure>) {
+        val asking = Memory.logImport as? LogImportState.Asking ?: return
+        val app = applicationContext
+        Memory.logBusy = true
+        Memory.logImport = LogImportState.Idle
+        LogController.scope.launch {
+            try {
+                Memory.logImport = LogController.finishImport(app, asking.file, measures)
+            } finally {
+                Memory.logBusy = false
+            }
+        }
+    }
+
+    override fun dismissLogImport() {
+        Memory.logImport = LogImportState.Idle
     }
 
     /** Opens a system settings screen, or [fallback] if that screen is missing. */
@@ -341,6 +434,8 @@ class MainActivity : ComponentActivity(), SatiActions {
     private object Memory {
         var importing by mutableStateOf(false)
         var message by mutableStateOf<String?>(null)
+        var logBusy by mutableStateOf(false)
+        var logImport by mutableStateOf<LogImportState>(LogImportState.Idle)
     }
 
     companion object {

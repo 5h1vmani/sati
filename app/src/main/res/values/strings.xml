@@ -2,4 +2,211 @@
 <resources>
     <string name="app_name">Sati</string>
     <string name="tile_label">Sati</string>
+
+    <!-- Practice log. Whole sentences, with plural forms wherever a number appears. -->
+    <string name="tab_log">Log</string>
+    <string name="log_today">Today</string>
+    <string name="log_yesterday">Yesterday</string>
+    <string name="log_back">Back</string>
+    <string name="log_cancel">Cancel</string>
+    <string name="log_save">Save</string>
+    <string name="log_undo">Undo</string>
+    <string name="log_dismiss">Dismiss</string>
+    <string name="log_working">Please wait.</string>
+    <string name="log_error_generic">Something went wrong, and the change may not be saved. Check that the phone has free space, then try again.</string>
+    <string name="log_open_entries">Show entries of %1$s</string>
+    <string name="log_save_keep_focus">Save and keep focus</string>
+
+    <!-- Today -->
+    <string name="log_empty_title">No practices yet</string>
+    <string name="log_empty_body">Add the practices you keep, such as Hatha Yoga or Kriya Yoga. Then log each one with a tap.</string>
+    <string name="log_add_practice">Add practice</string>
+    <string name="log_all_archived">All your practices are archived. Return one from the practices list to log it again.</string>
+    <string name="log_manage">Manage practices</string>
+    <string name="log_done">Done</string>
+    <string name="log_not_done_yet">Not done yet</string>
+    <string name="log_done_mark">Done today</string>
+    <string name="log_not_done_mark">Not done today</string>
+    <string name="log_marked_done">%1$s is marked done.</string>
+    <string name="log_focus_average">Average focus %1$.1f of 10</string>
+    <string name="log_focus_value">Focus %1$d of 10</string>
+    <plurals name="log_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="log_cycles">
+        <item quantity="one">%d cycle</item>
+        <item quantity="other">%d cycles</item>
+    </plurals>
+    <plurals name="log_minutes_of_target">
+        <item quantity="one">%1$d of %2$d minute</item>
+        <item quantity="other">%1$d of %2$d minutes</item>
+    </plurals>
+    <plurals name="log_cycles_of_target">
+        <item quantity="one">%1$d of %2$d cycle</item>
+        <item quantity="other">%1$d of %2$d cycles</item>
+    </plurals>
+
+    <!-- Entry form -->
+    <string name="log_entry_new_title">Log %1$s</string>
+    <string name="log_entry_edit_title">Edit entry</string>
+    <string name="log_value_minutes">Minutes</string>
+    <string name="log_value_cycles">Cycles</string>
+    <string name="log_change_day">Change day</string>
+    <string name="log_pick_day">Choose</string>
+    <string name="log_add_note">Add note</string>
+    <string name="log_note">Note</string>
+    <string name="log_focus">Focus</string>
+    <string name="log_focus_button">Focus %1$d of 10</string>
+    <string name="log_no_score">No score</string>
+    <string name="log_problem_value">Enter a whole number from 1 to %1$d.</string>
+    <string name="log_problem_focus">Focus is a score from 1 to 10.</string>
+    <plurals name="log_problem_note">
+        <item quantity="one">A note can have up to %d character.</item>
+        <item quantity="other">A note can have up to %d characters.</item>
+    </plurals>
+    <string name="log_problem_note_chars">A note cannot have control or hidden characters.</string>
+    <string name="log_problem_name_hidden">A name cannot have control or hidden characters.</string>
+    <string name="log_problem_future">A day that has not come yet cannot be logged.</string>
+    <string name="log_problem_no_practice">That practice no longer exists.</string>
+
+    <!-- One practice and its entries -->
+    <string name="log_add_entry">Add entry</string>
+    <string name="log_no_entries">No entries yet.</string>
+    <string name="log_edit_entry">Edit entry</string>
+    <string name="log_delete_entry">Delete entry</string>
+    <string name="log_entry_deleted">Entry deleted.</string>
+    <string name="log_show_more">Show more entries</string>
+
+    <!-- Practices list and editor -->
+    <string name="log_practices_title">Practices</string>
+    <string name="log_no_practices">You have no practices yet.</string>
+    <string name="log_measure_minutes">Minutes</string>
+    <string name="log_measure_count">Cycles</string>
+    <string name="log_measure_done">Done</string>
+    <string name="log_measure_line_target">%1$s. Target: %2$s.</string>
+    <string name="log_archived">Archived</string>
+    <string name="log_archive_practice">Archive %1$s</string>
+    <string name="log_return_practice">Return %1$s</string>
+    <string name="log_edit_practice">Edit %1$s</string>
+    <string name="log_delete_practice">Delete %1$s</string>
+    <string name="log_practice_new_title">New practice</string>
+    <string name="log_practice_edit_title">Edit practice</string>
+    <string name="log_close_editor">Close without saving</string>
+    <string name="log_name">Name</string>
+    <string name="log_measure">Measure</string>
+    <string name="log_target_label">Daily target (optional)</string>
+    <string name="log_measure_locked">The measure cannot change while a practice has entries.</string>
+    <string name="log_problem_name_blank">Give the practice a name.</string>
+    <plurals name="log_problem_name_long">
+        <item quantity="one">A name can have up to %d character.</item>
+        <item quantity="other">A name can have up to %d characters.</item>
+    </plurals>
+    <string name="log_problem_name_taken">You already have a practice with that name.</string>
+    <string name="log_problem_target">The target must be a whole number from 1 to %1$d.</string>
+    <string name="log_delete_title">Delete %1$s?</string>
+    <string name="log_delete_body_none">It has no entries. This cannot be undone.</string>
+    <plurals name="log_delete_body">
+        <item quantity="one">Its %d entry will be deleted too. This cannot be undone.</item>
+        <item quantity="other">Its %d entries will be deleted too. This cannot be undone.</item>
+    </plurals>
+    <string name="log_delete_confirm">Delete</string>
+
+    <!-- Export and import -->
+    <string name="log_backup_title">Backup</string>
+    <string name="log_backup_body">Sati keeps no copy online. Export saves your log and sadhanas in one file. Import reads such a file, or a CSV file with four columns: date, practice, value and focus in percent.</string>
+    <string name="log_export">Export</string>
+    <string name="log_import">Import</string>
+    <string name="log_never_exported">You have not exported yet.</string>
+    <string name="log_exported_today">Last export: today.</string>
+    <plurals name="log_exported_days">
+        <item quantity="one">Last export: %d day ago.</item>
+        <item quantity="other">Last export: %d days ago.</item>
+    </plurals>
+    <string name="log_reminder_first">Your log exists only on this phone. Export it to keep a copy.</string>
+    <plurals name="log_reminder_old">
+        <item quantity="one">Your last export is more than %d day old. Export again to keep a copy.</item>
+        <item quantity="other">Your last export is more than %d days old. Export again to keep a copy.</item>
+    </plurals>
+    <plurals name="log_exported">
+        <item quantity="one">Exported %d entry.</item>
+        <item quantity="other">Exported %d entries.</item>
+    </plurals>
+    <string name="log_export_failed">The file could not be saved. Nothing was exported.</string>
+    <string name="log_import_done_title">Import finished</string>
+    <plurals name="log_import_added">
+        <item quantity="one">Added %d entry.</item>
+        <item quantity="other">Added %d entries.</item>
+    </plurals>
+    <plurals name="log_import_skipped">
+        <item quantity="one">Skipped %d entry that was already in the log.</item>
+        <item quantity="other">Skipped %d entries that were already in the log.</item>
+    </plurals>
+    <plurals name="log_import_practices">
+        <item quantity="one">Created %d new practice.</item>
+        <item quantity="other">Created %d new practices.</item>
+    </plurals>
+    <string name="log_import_ask_title">Choose a measure</string>
+    <string name="log_import_ask_body">These practices are not in your log yet. Choose how each one is counted.</string>
+    <string name="log_import_start">Import</string>
+
+    <!-- Import errors: a start, a place and a reason. Each part is a whole sentence. -->
+    <string name="log_import_error">Nothing was imported. %1$s %2$s</string>
+    <string name="log_import_error_plain">Nothing was imported. %1$s</string>
+    <string name="log_where_line">Line %1$d.</string>
+    <string name="log_where_file">File %1$s.</string>
+    <string name="log_where_file_line">Line %1$d of %2$s.</string>
+    <string name="log_error_unreadable">The file could not be read.</string>
+    <string name="log_error_too_large">The file is larger than %1$d MB.</string>
+    <string name="log_error_empty">The file has no rows.</string>
+    <string name="log_error_missing_file">This file is missing from the ZIP.</string>
+    <string name="log_error_quote">A quote mark is not closed or is in the wrong place.</string>
+    <string name="log_error_columns">The row does not have the expected columns.</string>
+    <plurals name="log_error_id">
+        <item quantity="one">The id is empty, used twice, or not made of up to %d letter, digit, hyphen or underscore.</item>
+        <item quantity="other">The id is empty, used twice, or not made of up to %d letters, digits, hyphens or underscores.</item>
+    </plurals>
+    <string name="log_error_name">The name is empty, too long, or used twice.</string>
+    <string name="log_error_text">A name or note has a control or hidden character.</string>
+    <string name="log_error_too_many">The file has more rows or practices than the limit of %1$d.</string>
+    <string name="log_error_measure">The measure must be minutes, count or done.</string>
+    <string name="log_error_target">The target must be a whole number from 1 to %1$d.</string>
+    <string name="log_error_flag">Archived must be true or false.</string>
+    <string name="log_error_date">The date is not valid. Write it as yyyy-mm-dd.</string>
+    <string name="log_error_future">The day has not come yet.</string>
+    <string name="log_error_value">The value must be a whole number from 1 to %1$d.</string>
+    <string name="log_error_focus">The focus is not valid.</string>
+    <string name="log_error_periods">The archive periods are not valid.</string>
+    <string name="log_error_number">A number in this row is not valid.</string>
+    <string name="log_error_practice">The practice id does not match any practice in the file or in your log.</string>
+    <string name="log_error_conflict">A practice with this name already exists with another measure.</string>
+    <string name="log_error_sadhanas">The sadhana list is not a valid list.</string>
+
+    <!-- Sadhana editor checks for names and labels -->
+    <string name="sadhana_flaw_hidden">A name or label cannot have control or hidden characters.</string>
+    <string name="sadhana_flaw_id">This sadhana has an id that cannot be used.</string>
+    <plurals name="sadhana_flaw_long">
+        <item quantity="one">A name or label can have up to %d character.</item>
+        <item quantity="other">A name or label can have up to %d characters.</item>
+    </plurals>
+    <plurals name="sadhana_limit">
+        <item quantity="one">You have reached the limit of %d sadhana. Delete one to add another.</item>
+        <item quantity="other">You have reached the limit of %d sadhanas. Delete one to add another.</item>
+    </plurals>
+    <plurals name="log_error_practice_limit">
+        <item quantity="one">The import would give you more than %d practice.</item>
+        <item quantity="other">The import would give you more than %d practices.</item>
+    </plurals>
+    <plurals name="log_practice_limit">
+        <item quantity="one">You have reached the limit of %d practice. Delete one to add another.</item>
+        <item quantity="other">You have reached the limit of %d practices. Delete one to add another.</item>
+    </plurals>
+    <plurals name="log_import_sadhanas_added">
+        <item quantity="one">Added %d sadhana.</item>
+        <item quantity="other">Added %d sadhanas.</item>
+    </plurals>
+    <plurals name="log_import_sadhanas_skipped">
+        <item quantity="one">Skipped %d sadhana that was already saved, not valid, or over the limit.</item>
+        <item quantity="other">Skipped %d sadhanas that were already saved, not valid, or over the limit.</item>
+    </plurals>
 </resources>

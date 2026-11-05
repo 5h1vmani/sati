@@ -41,12 +41,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.padakanti.sati.R
 import com.padakanti.sati.Sadhana
+import com.padakanti.sati.SadhanaCheck
+import com.padakanti.sati.SadhanaFlaw
 import com.padakanti.sati.Stage
 import com.padakanti.sati.TimeText
 
@@ -62,6 +66,9 @@ internal fun SadhanaEditor(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val flawId = stringResource(R.string.sadhana_flaw_id)
+    val flawHidden = stringResource(R.string.sadhana_flaw_hidden)
+    val flawLong = pluralStringResource(R.plurals.sadhana_flaw_long, SadhanaCheck.MAX_TEXT, SadhanaCheck.MAX_TEXT)
     var name by remember { mutableStateOf(initial.name) }
     val stages = remember { mutableStateListOf(*initial.stages.map { StageDraft("${it.minutes}", it.label) }.toTypedArray()) }
     var settle by remember { mutableIntStateOf(initial.settleSec) }
@@ -71,14 +78,21 @@ internal fun SadhanaEditor(
     var confirmDelete by remember { mutableStateOf(false) }
 
     fun save() {
-        val s = Sadhana(
-            id = initial.id,
-            name = name.trim(),
-            stages = stages.map { Stage(it.minutes.toIntOrNull() ?: 0, it.label.trim()) },
-            settleSec = settle,
-            vibrateOnly = vibrateOnly,
+        val s = SadhanaCheck.normalized(
+            Sadhana(
+                id = initial.id,
+                name = name.trim(),
+                stages = stages.map { Stage(it.minutes.toIntOrNull() ?: 0, it.label.trim()) },
+                settleSec = settle,
+                vibrateOnly = vibrateOnly,
+            ),
         )
-        problem = Sadhana.problem(s)
+        problem = Sadhana.problem(s) ?: when (SadhanaCheck.flaw(s)) {
+            null, SadhanaFlaw.Basic -> null
+            SadhanaFlaw.BadId -> flawId
+            SadhanaFlaw.HiddenCharacters -> flawHidden
+            SadhanaFlaw.TooLong -> flawLong
+        }
         if (problem == null) onSave(s)
     }
 

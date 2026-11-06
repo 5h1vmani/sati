@@ -71,7 +71,8 @@ class LogImportTest {
         assertEquals(ImportError(ImportErrorKind.FutureDay, "", 1), handMadeError("2026-11-06,A,10,\n"))
         assertEquals(ImportError(ImportErrorKind.BadName, "", 1), handMadeError("2026-11-01,  ,10,\n"))
         assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), handMadeError("2026-11-01,A,ten,\n"))
-        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), handMadeError("2026-11-01,A,0,\n"))
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), handMadeError("2026-11-01,A,-1,\n"))
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), handMadeError("2026-11-01,A,100000,\n"))
         assertEquals(ImportError(ImportErrorKind.BadFocus, "", 1), handMadeError("2026-11-01,A,5,150\n"))
         assertEquals(ImportError(ImportErrorKind.BadFocus, "", 1), handMadeError("2026-11-01,A,5,high\n"))
     }
@@ -514,5 +515,212 @@ class LogImportTest {
         assertEquals("p1", c.entries.single().practiceId)
         val fresh = merge(handMade("2026-11-01,Cafe\u0301,5,\n"), empty)
         assertEquals(listOf("Caf\u00E9"), fresh.practices.map { it.name })
+    }
+
+    // ---------- values and focus checked against the measure ----------
+
+    private fun mergeResult(text: String, measure: Measure, name: String = "X") =
+        LogImport.merge(handMade(text), empty, mapOf(name to measure), now, ::newId)
+
+    private fun mergeError(text: String, measure: Measure, name: String = "X") = (mergeResult(text, measure, name) as Parsed.Failed).error
+
+    @Test fun aHandMadeValueMayEndInAPercentSign() {
+        val file = handMade("2026-11-01,X,72%,\n2026-11-02,X, 85 % ,\n")
+        assertEquals(listOf(72, 85), file.entries.map { it.value })
+        val c = merge(file, empty, mapOf("X" to Measure.Percent))
+        assertEquals(listOf(72, 85), c.entries.map { it.value })
+        assertEquals(Measure.Percent, c.practices.single().measure)
+    }
+
+    @Test fun aHandMadeValueOfZeroPassesParsingAndFailsOnlyForMeasuresThatForbidIt() {
+        assertEquals(0, handMade("2026-11-01,X,0,\n").entries.single().value)
+        assertEquals(0, merge(handMade("2026-11-01,X,0,\n"), empty, mapOf("X" to Measure.Percent)).entries.single().value)
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,0,\n", Measure.Minutes))
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,0,\n", Measure.Count))
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,0,\n", Measure.Scale))
+    }
+
+    @Test fun aHandMadeDonePracticeReadsZeroAsNotDoneAndOneOrMoreAsDone() {
+        val c = merge(handMade("2026-11-01,X,0,\n2026-11-02,X,1,\n2026-11-03,X,45,\n"), empty, mapOf("X" to Measure.Done))
+        assertEquals(listOf(0, 1, 1), c.entries.map { it.value })
+    }
+
+    @Test fun aScaleValueOutOfRangeStopsTheImportWithItsLine() {
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 2), mergeError("2026-11-01,X,5,\n2026-11-02,X,11,\n", Measure.Scale))
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,0,\n", Measure.Scale))
+        assertEquals(10, merge(handMade("2026-11-01,X,10,\n"), empty, mapOf("X" to Measure.Scale)).entries.single().value)
+    }
+
+    @Test fun aPercentValueAboveOneHundredStopsTheImport() {
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,101,\n", Measure.Percent))
+        assertEquals(100, merge(handMade("2026-11-01,X,100%,\n"), empty, mapOf("X" to Measure.Percent)).entries.single().value)
+    }
+
+    @Test fun oneBadRowStopsTheWholeImportEvenAfterGoodRows() {
+        val result = mergeResult("2026-11-01,X,5,\n2026-11-02,X,6,\n2026-11-03,X,60,\n", Measure.Scale)
+        assertTrue(result is Parsed.Failed)
+    }
+
+    @Test fun aFocusOnAPercentOrScaleRowIsKeptAsItIs() {
+        val percent = merge(handMade("2026-11-01,X,50,85\n"), empty, mapOf("X" to Measure.Percent))
+        assertEquals(9, percent.entries.single().focus)
+        val scale = merge(handMade("2026-11-01,X,5,40\n"), empty, mapOf("X" to Measure.Scale))
+        assertEquals(4, scale.entries.single().focus)
+    }
+
+    @Test fun aNotDoneRowWithAFocusIsBadFocus() {
+        assertEquals(ImportError(ImportErrorKind.BadFocus, "", 1), mergeError("2026-11-01,X,0,80\n", Measure.Done))
+        assertEquals(9, merge(handMade("2026-11-01,X,1,85\n"), empty, mapOf("X" to Measure.Done)).entries.single().focus)
+    }
+
+    @Test fun beforeTheUserChoosesAMeasureTheValuesAreNotCheckedAgainstAGuess() {
+        // Value 0 is wrong for the guessed Minutes, but right for Percent. The check waits for the choice.
+        val first = LogImport.merge(handMade("2026-11-01,X,0,\n"), empty, emptyMap(), now, ::newId)
+        assertEquals(listOf("X"), (first as Parsed.Ok).value.unknownNames)
+        val chosen = LogImport.merge(handMade("2026-11-01,X,0,\n"), empty, mapOf("X" to Measure.Minutes), now, ::newId)
+        assertEquals(ImportErrorKind.BadValue, (chosen as Parsed.Failed).error.kind)
+    }
+
+    @Test fun theFinalRunChecksAPracticeThatIsStillAGuess() {
+        // A name nobody chose a measure for, for example because its practice was deleted meanwhile.
+        val result = LogImport.merge(handMade("2026-11-01,X,0,\n"), empty, emptyMap(), now, ::newId, final = true)
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), (result as Parsed.Failed).error)
+    }
+
+    @Test fun aPercentSignIsAllowedOnlyForAPercentPractice() {
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,30%,\n", Measure.Minutes))
+        assertEquals(30, merge(handMade("2026-11-01,X,30,\n"), empty, mapOf("X" to Measure.Minutes)).entries.single().value)
+    }
+
+    @Test fun aKnownPracticeIsCheckedAgainstItsOwnMeasureAtOnce() {
+        val mood = Practice("m", "Mood", Measure.Scale, null, 0, false, 0, askFocus = false)
+        val result = LogImport.merge(handMade("2026-11-01,Mood,50,\n"), LogState(listOf(mood), emptyList()), emptyMap(), now, ::newId)
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), (result as Parsed.Failed).error)
+    }
+
+    @Test fun aZipDoneRowMustAlreadyBeZeroOrOne() {
+        val bad = entries[1].copy(value = 2)
+        val z = zip(entriesCsv = LogExport.entriesCsv(listOf(entries[0], bad), listOf(yoga, aum)))
+        val file = (LogImport.parseZip(z, today) as Parsed.Ok).value
+        val result = LogImport.merge(file, empty, emptyMap(), now, ::newId)
+        assertEquals(ImportError(ImportErrorKind.BadValue, "entries.csv", 4), (result as Parsed.Failed).error)
+    }
+
+    @Test fun aZipDoneRowOfZeroIsKeptAsNotDone() {
+        val notDone = entries[1].copy(value = 0)
+        val z = zip(entriesCsv = LogExport.entriesCsv(listOf(entries[0], notDone), listOf(yoga, aum)))
+        val c = merge((LogImport.parseZip(z, today) as Parsed.Ok).value, empty)
+        assertEquals(0, c.entries.single { it.id == "e2" }.value)
+    }
+
+    @Test fun aZipDoneRowOfZeroWithAFocusIsBadFocus() {
+        val bad = entries[1].copy(value = 0, focus = 6)
+        val z = zip(entriesCsv = LogExport.entriesCsv(listOf(entries[0], bad), listOf(yoga, aum)))
+        val result = LogImport.merge((LogImport.parseZip(z, today) as Parsed.Ok).value, empty, emptyMap(), now, ::newId)
+        assertEquals(ImportError(ImportErrorKind.BadFocus, "entries.csv", 4), (result as Parsed.Failed).error)
+    }
+
+    @Test fun aZipRowOfACountPracticeWithValueZeroIsBadValue() {
+        val bad = entries[0].copy(value = 0)
+        val z = zip(entriesCsv = LogExport.entriesCsv(listOf(bad, entries[1]), listOf(yoga, aum)))
+        val result = LogImport.merge((LogImport.parseZip(z, today) as Parsed.Ok).value, empty, emptyMap(), now, ::newId)
+        assertEquals(ImportError(ImportErrorKind.BadValue, "entries.csv", 2), (result as Parsed.Failed).error)
+    }
+
+    @Test fun percentAndScalePracticesRoundTripThroughExportAndImport() {
+        val energy = Practice("p-energy", "Energy", Measure.Percent, null, day("2026-10-01"), false, 0, askFocus = true)
+        val mood = Practice("p-mood", "Mood", Measure.Scale, null, day("2026-10-01"), false, 1, askFocus = false)
+        val es = listOf(
+            Entry("x1", "p-energy", day("2026-11-01"), 72, 8, null, 1),
+            Entry("x2", "p-mood", day("2026-11-01"), 7, null, null, 2),
+        )
+        val csv = LogExport.practicesCsv(listOf(energy, mood), emptyList())
+        assertTrue(csv.contains("percent"))
+        assertTrue(csv.contains("scale"))
+        val z = ZipContents(csv, LogExport.entriesCsv(es, listOf(energy, mood)), null)
+        val c = merge((LogImport.parseZip(z, today) as Parsed.Ok).value, empty)
+        assertEquals(listOf(energy, mood), c.practices)
+        assertEquals(es, c.entries)
+    }
+
+    @Test fun theMeasureNamesPercentAndScaleAreReadFromACsv() {
+        assertEquals(Measure.Percent, LogExport.measureOf("percent"))
+        assertEquals(Measure.Scale, LogExport.measureOf(" Scale "))
+        assertEquals("percent", LogExport.measureText(Measure.Percent))
+    }
+
+    // ---------- the ask_focus column ----------
+
+    private val oldHeaderRows = listOf(
+        listOf("p-yoga", "Hatha Yoga", "done", "", "2026-10-01", "false", ""),
+        listOf("p-aum", "AUM", "count", "108", "2026-10-02", "false", ""),
+        listOf("p-mood", "Mood", "scale", "", "2026-10-03", "false", ""),
+    )
+
+    private fun practiceFile(csv: String): Parsed<ImportFile> =
+        LogImport.parseZip(ZipContents(csv, LogExport.entriesCsv(emptyList(), emptyList()), null), today)
+
+    @Test fun theExportWritesAskFocusAsTheLastColumn() {
+        val off = aum.copy(askFocus = false)
+        val csv = LogExport.practicesCsv(listOf(yoga, off), emptyList())
+        assertEquals("ask_focus", LogExport.PRACTICE_HEADER.last())
+        assertTrue(csv.lineSequence().first().endsWith(",ask_focus"))
+        val lines = csv.trim().lines()
+        assertTrue(lines[1], lines[1].endsWith(",true"))
+        assertTrue(lines[2], lines[2].endsWith(",false"))
+    }
+
+    @Test fun aFileWithAskFocusKeepsEachPracticesSwitch() {
+        val off = aum.copy(askFocus = false)
+        val on = yoga.copy(askFocus = true)
+        val file = (practiceFile(LogExport.practicesCsv(listOf(on, off), emptyList())) as Parsed.Ok).value
+        assertEquals(listOf(true, false), file.practices.map { it.askFocus })
+        val c = merge(file, empty)
+        assertEquals(listOf(true, false), c.practices.map { it.askFocus })
+    }
+
+    @Test fun aFileWithoutAskFocusGivesEachMeasureItsDefault() {
+        val csv = Csv.write(listOf(LogExport.PRACTICE_HEADER_OLD) + oldHeaderRows)
+        val file = (practiceFile(csv) as Parsed.Ok).value
+        assertEquals(listOf<Boolean?>(null, null, null), file.practices.map { it.askFocus })
+        val c = merge(file, empty)
+        assertEquals(listOf(false, true, false), c.practices.map { it.askFocus })
+    }
+
+    @Test fun aBadAskFocusValueNamesTheLine() {
+        val rows = oldHeaderRows.mapIndexed { i, r -> r + (if (i == 1) "maybe" else "true") }
+        val csv = Csv.write(listOf(LogExport.PRACTICE_HEADER) + rows)
+        assertEquals(ImportError(ImportErrorKind.BadFlag, "practices.csv", 3), (practiceFile(csv) as Parsed.Failed).error)
+    }
+
+    @Test fun aRowShorterThanItsHeaderIsStillAColumnError() {
+        val csv = Csv.write(listOf(LogExport.PRACTICE_HEADER, oldHeaderRows[0]))
+        assertEquals(ImportError(ImportErrorKind.WrongColumns, "practices.csv", 2), (practiceFile(csv) as Parsed.Failed).error)
+        val other = Csv.write(listOf(LogExport.PRACTICE_HEADER.dropLast(2)))
+        assertEquals(ImportError(ImportErrorKind.WrongColumns, "practices.csv", 1), (practiceFile(other) as Parsed.Failed).error)
+    }
+
+    @Test fun anExistingPracticeKeepsItsOwnSwitchWhenTheFileHasAnother() {
+        val mine = aum.copy(askFocus = false)
+        val file = (practiceFile(LogExport.practicesCsv(listOf(aum.copy(askFocus = true)), emptyList())) as Parsed.Ok).value
+        assertEquals(emptyList<Practice>(), merge(file, LogState(listOf(mine), emptyList())).practices)
+    }
+
+    @Test fun aHandMadePracticeAsksForFocusWhenAnyRowHasOne() {
+        val c = merge(
+            handMade("2026-11-01,A,50,\n2026-11-02,A,60,85\n2026-11-01,B,50,\n2026-11-01,C,5,\n2026-11-01,D,1,70\n"),
+            empty,
+            mapOf("A" to Measure.Percent, "B" to Measure.Percent, "C" to Measure.Scale, "D" to Measure.Done),
+        )
+        assertEquals(true, c.practices.single { it.name == "A" }.askFocus)
+        assertEquals(false, c.practices.single { it.name == "B" }.askFocus)
+        assertEquals(false, c.practices.single { it.name == "C" }.askFocus)
+        assertEquals(true, c.practices.single { it.name == "D" }.askFocus)
+    }
+
+    @Test fun aHandMadePracticeWithoutFocusRowsGetsTheMeasureDefault() {
+        val c = merge(handMade("2026-11-01,A,10,\n2026-11-01,B,10,\n"), empty, mapOf("A" to Measure.Minutes, "B" to Measure.Done))
+        assertEquals(true, c.practices.single { it.name == "A" }.askFocus)
+        assertEquals(false, c.practices.single { it.name == "B" }.askFocus)
     }
 }

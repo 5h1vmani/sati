@@ -7,7 +7,9 @@ import java.util.Locale
  * yyyy-mm-dd, so the files read well in a spreadsheet.
  */
 object LogExport {
-    val PRACTICE_HEADER = listOf("id", "name", "measure", "target", "created", "archived", "archive_periods")
+    /** The last practice column, ask_focus, came after the first export format. Import reads files with or without it. */
+    val PRACTICE_HEADER_OLD = listOf("id", "name", "measure", "target", "created", "archived", "archive_periods")
+    val PRACTICE_HEADER = PRACTICE_HEADER_OLD + "ask_focus"
     val ENTRY_HEADER = listOf("id", "practice_id", "practice", "date", "value", "focus", "note", "created_at")
 
     fun fileName(day: Long): String = "sati-log-${LogDay.date(day)}.zip"
@@ -32,6 +34,7 @@ object LogExport {
                     LogDay.date(it.createdDay).toString(),
                     it.archived.toString(),
                     periodsText(byPractice[it.id].orEmpty().sortedBy { p -> p.fromDay }),
+                    it.askFocus.toString(),
                 )
             },
         )

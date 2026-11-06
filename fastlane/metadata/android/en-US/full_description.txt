@@ -23,8 +23,9 @@ Sati rings a bell now and then during your waking hours. Each bell is a moment t
 
 <b>Practice log</b>
 <ul>
-<li>Keep a list of your practices, counted in minutes, cycles or simply done, with an optional daily target.</li>
-<li>Today shows each practice and what is left. A done practice takes one tap. Other entries take two, with a focus score from 1 to 10.</li>
+<li>Keep a list of your practices, counted in minutes, cycles, done, percent or a scale of 1 to 10. Minutes and cycles can have a daily target.</li>
+<li>Today shows each practice and what is left. A done practice takes one tap, and a cross marks it not done. Other entries take two taps.</li>
+<li>A focus score from 1 to 10 is optional. Turn it on or off for each practice.</li>
 <li>Add entries for past days, so old paper records can be typed in.</li>
 <li>Export the log and your sadhanas to one file, and import it back. A spreadsheet of old records can be imported too.</li>
 </ul>

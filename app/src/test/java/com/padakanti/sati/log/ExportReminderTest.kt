@@ -20,12 +20,24 @@ class ExportReminderTest {
         assertEquals(31, ExportReminder.daysSince(at(10, 5), at(11, 5), zone))
     }
 
-    @Test fun asksWhenThereWasNoExportAndEntriesExist() = assertTrue(ExportReminder.shouldAsk(0, at(11, 5), zone, hasEntries = true))
+    @Test fun theFirstAskComesWhenThereWasNoExportAndEntriesExist() = assertTrue(ExportReminder.shouldAskFirst(0, hasEntries = true))
 
-    @Test fun staysQuietWhenThereIsNothingToLose() = assertFalse(ExportReminder.shouldAsk(0, at(11, 5), zone, hasEntries = false))
+    @Test fun theFirstAskStaysQuietWhenThereIsNothingToLose() = assertFalse(ExportReminder.shouldAskFirst(0, hasEntries = false))
 
-    @Test fun asksOnlyAfterThirtyDays() {
-        assertFalse(ExportReminder.shouldAsk(at(10, 6), at(11, 5), zone, hasEntries = true))
-        assertTrue(ExportReminder.shouldAsk(at(10, 5), at(11, 5), zone, hasEntries = true))
+    @Test fun theFirstAskStopsAfterAnExport() = assertFalse(ExportReminder.shouldAskFirst(at(11, 5), hasEntries = true))
+
+    @Test fun theTopReminderNeverComesBeforeTheFirstExport() = assertFalse(ExportReminder.shouldRemind(0, at(11, 5), zone))
+
+    @Test fun theTopReminderComesOnlyAfterThirtyDays() {
+        assertFalse(ExportReminder.shouldRemind(at(10, 6), at(11, 5), zone))
+        assertTrue(ExportReminder.shouldRemind(at(10, 5), at(11, 5), zone))
+    }
+
+    @Test fun theTwoAsksNeverCoincide() {
+        val neverExported = listOf(true, false).map { ExportReminder.shouldAskFirst(0, it) to ExportReminder.shouldRemind(0, at(11, 5), zone) }
+        assertTrue(neverExported.none { it.first && it.second })
+        val old = at(1, 1)
+        assertFalse(ExportReminder.shouldAskFirst(old, hasEntries = true))
+        assertTrue(ExportReminder.shouldRemind(old, at(11, 5), zone))
     }
 }

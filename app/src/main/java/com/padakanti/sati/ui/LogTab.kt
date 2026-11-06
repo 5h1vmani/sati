@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,6 +38,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
@@ -57,10 +59,14 @@ import com.padakanti.sati.log.Today
 import com.padakanti.sati.log.TodayRow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.ZoneId
 
 /** Entries shown at a time on a practice screen. A year of daily entries stays quick. */
 private const val PAGE = 60
+
+/** How long the Undo snackbar stays, before Android's "time to take action" setting changes it. */
+private const val UNDO_MILLIS = 5_000L
 
 private const val TODAY = "today"
 private const val PRACTICES = "practices"
@@ -112,13 +118,21 @@ internal fun LogTab(
     var editor by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by remember { mutableStateOf<Practice?>(null) }
 
-    /** Shows [message] with an Undo button. [undo] runs if the user taps it. */
+    // The user's "time to take action" setting can make the Undo last longer than the default.
+    val undoMillis = LocalAccessibilityManager.current
+        ?.calculateRecommendedTimeoutMillis(UNDO_MILLIS, containsIcons = false, containsText = true, containsControls = true)
+        ?: UNDO_MILLIS
+
+    /** Shows [message] with an Undo button for [undoMillis]. [undo] runs if the user taps it. */
     fun showUndo(message: String, undo: suspend () -> Unit) {
         scope.launch {
             snackbar.currentSnackbarData?.dismiss()
-            val result = snackbar.showSnackbar(
-                message, actionLabel = context.getString(R.string.log_undo), duration = SnackbarDuration.Short,
-            )
+            // The snackbar has no end of its own. Cancelling showSnackbar when the time is up dismisses it.
+            val result = withTimeoutOrNull(undoMillis) {
+                snackbar.showSnackbar(
+                    message, actionLabel = context.getString(R.string.log_undo), duration = SnackbarDuration.Indefinite,
+                )
+            }
             if (result == SnackbarResult.ActionPerformed) undo()
         }
     }
@@ -167,16 +181,25 @@ internal fun LogTab(
             today = today,
             practices = practices,
             actions = actions,
-            // A minutes or count row always opens the form. A done row logs with one tap, or opens its entries when already done.
+            // Every row except a done one opens the form. A done row opens it when the practice asks for focus.
+            // Otherwise it logs with one tap, or opens its entries once it is logged, as done or not done.
             onTap = { row ->
                 val p = row.practice
                 when {
                     p.measure != Measure.Done -> form = FormTarget(p.id, null)
-                    row.done -> openPractice(p.id, TODAY)
+                    row.logged -> openPractice(p.id, TODAY)
+                    p.askFocus -> form = FormTarget(p.id, null)
                     else -> LogController.scope.launch {
                         val entry = LogController.logDone(context, p.id) ?: return@launch
                         showUndo(context.getString(R.string.log_marked_done, p.name)) { LogController.deleteEntry(context, entry.id) }
                     }
+                }
+            },
+            onNotDone = { row ->
+                val p = row.practice
+                LogController.scope.launch {
+                    val entry = LogController.logNotDone(context, p.id) ?: return@launch
+                    showUndo(context.getString(R.string.log_marked_not_done, p.name)) { LogController.deleteEntry(context, entry.id) }
                 }
             },
             onEntries = { openPractice(it.id, TODAY) },
@@ -211,9 +234,9 @@ internal fun LogTab(
         } else {
             PracticeEditor(
                 initial = initial,
-                onSave = { name, measure, target ->
-                    if (initial == null) LogController.addPractice(context, name, measure, target)
-                    else LogController.editPractice(context, initial.id, name, measure, target)
+                onSave = { name, measure, target, askFocus ->
+                    if (initial == null) LogController.addPractice(context, name, measure, target, askFocus)
+                    else LogController.editPractice(context, initial.id, name, measure, target, askFocus)
                 },
                 onDismiss = { editor = null },
             )
@@ -246,6 +269,7 @@ private fun TodayView(
     practices: List<Practice>?,
     actions: SatiActions,
     onTap: (TodayRow) -> Unit,
+    onNotDone: (TodayRow) -> Unit,
     onEntries: (Practice) -> Unit,
     onManage: () -> Unit,
     onAddPractice: () -> Unit,
@@ -255,11 +279,11 @@ private fun TodayView(
     val total by remember { LogController.entryTotal(context) }.collectAsState(initial = 0)
 
     ImportCard(ui.logImport, actions)
-    if (ExportReminder.shouldAsk(ui.logLastExport, now, ZoneId.systemDefault(), hasEntries = total > 0)) {
+    // Only the 30-day reminder sits at the top. The first ask is in the Backup card, so the rows do not jump after the first entry.
+    if (ExportReminder.shouldRemind(ui.logLastExport, now, ZoneId.systemDefault())) {
         Notice(
             R.drawable.lucide_archive,
-            if (ui.logLastExport <= 0) stringResource(R.string.log_reminder_first)
-            else pluralStringResource(R.plurals.log_reminder_old, ExportReminder.ASK_AFTER_DAYS, ExportReminder.ASK_AFTER_DAYS),
+            pluralStringResource(R.plurals.log_reminder_old, ExportReminder.ASK_AFTER_DAYS, ExportReminder.ASK_AFTER_DAYS),
             warning = true,
             actionLabel = stringResource(R.string.log_export),
             onAction = actions::exportLog,
@@ -279,7 +303,7 @@ private fun TodayView(
         else -> {
             val rows = Today.rows(practices, entries, today)
             if (rows.isEmpty()) Notice(R.drawable.lucide_archive, stringResource(R.string.log_all_archived))
-            rows.forEach { TodayCard(it, onClick = { onTap(it) }, onEntries = { onEntries(it.practice) }) }
+            rows.forEach { TodayCard(it, onClick = { onTap(it) }, onNotDone = { onNotDone(it) }, onEntries = { onEntries(it.practice) }) }
             OutlinedButton(onClick = onManage, modifier = Modifier.fillMaxWidth()) {
                 Icon(painterResource(R.drawable.lucide_list_checks), null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
@@ -288,29 +312,46 @@ private fun TodayView(
         }
     }
 
-    BackupCard(ui, now, actions)
+    BackupCard(ui, now, actions, askFirst = ExportReminder.shouldAskFirst(ui.logLastExport, hasEntries = total > 0))
 }
 
 @Composable
-private fun TodayCard(row: TodayRow, onClick: () -> Unit, onEntries: () -> Unit) {
+private fun TodayCard(row: TodayRow, onClick: () -> Unit, onNotDone: () -> Unit, onEntries: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
         Row(Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Three states: done, marked not done, and nothing logged.
             Icon(
-                painterResource(if (row.done) R.drawable.lucide_circle_check else R.drawable.lucide_circle),
-                stringResource(if (row.done) R.string.log_done_mark else R.string.log_not_done_mark),
+                painterResource(
+                    when {
+                        row.done -> R.drawable.lucide_circle_check
+                        row.notDone -> R.drawable.lucide_circle_x
+                        else -> R.drawable.lucide_circle
+                    },
+                ),
+                stringResource(
+                    when {
+                        row.done -> R.string.log_done_mark
+                        row.notDone -> R.string.log_not_done_mark
+                        else -> R.string.log_nothing_logged_mark
+                    },
+                ),
                 Modifier.size(28.dp),
-                tint = if (row.done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                tint = when {
+                    row.done -> MaterialTheme.colorScheme.primary
+                    row.notDone -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.outline
+                },
             )
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(row.practice.name, style = MaterialTheme.typography.titleMedium)
                 Text(progressText(row), style = MaterialTheme.typography.bodyMedium)
                 val target = row.target
-                if (target != null && row.practice.measure != Measure.Done) {
+                if (target != null) {
                     LinearProgressIndicator(
                         progress = { (row.total.toFloat() / target).coerceIn(0f, 1f) },
                         modifier = Modifier.fillMaxWidth(),
@@ -321,6 +362,16 @@ private fun TodayCard(row: TodayRow, onClick: () -> Unit, onEntries: () -> Unit)
                         stringResource(R.string.log_focus_average, it),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            // A done practice with nothing logged has a button to mark it not done in one tap.
+            if (row.practice.measure == Measure.Done && !row.logged) {
+                IconButton(onClick = onNotDone) {
+                    Icon(
+                        painterResource(R.drawable.lucide_circle_x),
+                        stringResource(R.string.log_mark_not_done, row.practice.name),
+                        Modifier.size(20.dp),
                     )
                 }
             }
@@ -383,19 +434,36 @@ private fun ImportCard(state: LogImportState, actions: SatiActions) {
     }
 }
 
-/** When the last export was, and the two buttons for the Storage Access Framework. */
+/**
+ * When the last export was, and the two buttons for the Storage Access Framework.
+ * With [askFirst], a warning says the log has no copy yet.
+ */
 @Composable
-private fun BackupCard(ui: SatiUi, now: Long, actions: SatiActions) {
+private fun BackupCard(ui: SatiUi, now: Long, actions: SatiActions, askFirst: Boolean) {
     SectionCard(R.drawable.lucide_download, stringResource(R.string.log_backup_title)) {
         val days = ExportReminder.daysSince(ui.logLastExport, now, ZoneId.systemDefault())
-        Text(
-            when (days) {
-                null -> stringResource(R.string.log_never_exported)
-                0 -> stringResource(R.string.log_exported_today)
-                else -> pluralStringResource(R.plurals.log_exported_days, days, days)
-            },
-            style = MaterialTheme.typography.bodyLarge,
-        )
+        if (askFirst) {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painterResource(R.drawable.lucide_triangle_alert), null, Modifier.size(20.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text(stringResource(R.string.log_reminder_first), style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        } else {
+            Text(
+                when (days) {
+                    null -> stringResource(R.string.log_never_exported)
+                    0 -> stringResource(R.string.log_exported_today)
+                    else -> pluralStringResource(R.plurals.log_exported_days, days, days)
+                },
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
         Text(stringResource(R.string.log_backup_body), style = MaterialTheme.typography.bodySmall)
         if (ui.logBusy) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -405,10 +473,16 @@ private fun BackupCard(ui: SatiUi, now: Long, actions: SatiActions) {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FilledTonalButton(onClick = actions::exportLog, enabled = !ui.logBusy) {
+            // The first export is the one that matters most, so its button is the strong one.
+            val exportContent: @Composable () -> Unit = {
                 Icon(painterResource(R.drawable.lucide_download), null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.log_export))
+            }
+            if (askFirst) {
+                Button(onClick = actions::exportLog, enabled = !ui.logBusy) { exportContent() }
+            } else {
+                FilledTonalButton(onClick = actions::exportLog, enabled = !ui.logBusy) { exportContent() }
             }
             OutlinedButton(onClick = actions::importLog, enabled = !ui.logBusy) {
                 Icon(painterResource(R.drawable.lucide_upload), null, Modifier.size(18.dp))
@@ -529,7 +603,7 @@ private fun PracticesView(
                 Column(Modifier.weight(1f)) {
                     Text(p.name, style = MaterialTheme.typography.titleMedium)
                     val target = p.target
-                    val line = if (target != null && p.measure != Measure.Done) {
+                    val line = if (target != null && PracticeRules.hasTarget(p.measure)) {
                         stringResource(R.string.log_measure_line_target, measureName(p.measure), amountText(p.measure, target))
                     } else {
                         measureName(p.measure)

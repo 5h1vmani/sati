@@ -18,8 +18,8 @@ class LogExportTest {
     @Test fun practicesFileHasAHeaderAndQuotedNames() {
         val csv = LogExport.practicesCsv(listOf(practice), emptyList())
         assertEquals(
-            "id,name,measure,target,created,archived,archive_periods\r\n" +
-                "p1,\"Sukha, Kriya\",count,108,2026-10-06,false,\r\n",
+            "id,name,measure,target,created,archived,archive_periods,ask_focus\r\n" +
+                "p1,\"Sukha, Kriya\",count,108,2026-10-06,false,,true\r\n",
             csv,
         )
     }
@@ -30,7 +30,7 @@ class LogExportTest {
             ArchivePeriod(1, "p2", day - 20, day - 10),
         )
         val csv = LogExport.practicesCsv(listOf(closed), periods)
-        assertTrue(csv.contains("2026-10-16/2026-10-26;2026-10-31/\r\n"))
+        assertTrue(csv.contains("2026-10-16/2026-10-26;2026-10-31/,true\r\n"))
     }
 
     @Test fun entriesFileHasAHeaderNamesAndNotes() {

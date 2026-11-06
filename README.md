@@ -31,8 +31,9 @@ Sadhana is a timer for a timed practice, such as breathing exercises, chanting o
 
 The practice log records every practice, not only the timed ones.
 
-- Keep a list of practices, each counted in minutes, cycles or done, with an optional daily target.
-- Today shows each practice and its progress. A done practice takes one tap, and other entries take two, with a focus score from 1 to 10.
+- Keep a list of practices, each counted in minutes, cycles, done, percent (0 to 100) or a scale (1 to 10). Minutes and cycles can have a daily target.
+- Today shows each practice and its progress. A done practice takes one tap, and a cross button marks it not done. Other entries take two taps.
+- A focus score from 1 to 10 is optional for each practice. A switch in the practice turns it on or off.
 - Add entries for past days, so paper records can be typed in. Any entry can be edited or deleted, with Undo.
 - Export the log and the saved sadhanas to one ZIP file, and import it back. Import also reads a hand-made CSV with the columns date, practice, value and focus in percent.
 - The log tab reminds you to export after 30 days, because the export is the only backup.

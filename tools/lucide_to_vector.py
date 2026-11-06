@@ -21,6 +21,8 @@ ICONS = [
     # The Log tab.
     "notebook-pen", "circle-check", "circle", "archive", "archive-restore",
     "download", "upload", "arrow-left", "calendar", "list-checks",
+    # Marking a done practice as not done.
+    "circle-x",
 ]
 OUT = Path(__file__).resolve().parent.parent / "app/src/main/res/drawable"
 NS = "{http://www.w3.org/2000/svg}"

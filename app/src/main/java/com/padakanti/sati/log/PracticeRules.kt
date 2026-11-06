@@ -21,8 +21,14 @@ object PracticeRules {
     fun measureProblem(old: Measure, new: Measure, entryCount: Int): PracticeProblem? =
         if (new != old && entryCount > 0) PracticeProblem.MeasureLocked else null
 
-    /** A done practice has no target. */
-    fun targetFor(measure: Measure, target: Int?): Int? = if (measure == Measure.Done) null else target
+    /** Only minutes and cycles have a target. */
+    fun hasTarget(measure: Measure): Boolean = measure == Measure.Minutes || measure == Measure.Count
+
+    /** The focus switch of a new practice: on for minutes and cycles, off for the others. */
+    fun defaultAskFocus(measure: Measure): Boolean = measure == Measure.Minutes || measure == Measure.Count
+
+    /** A done, percent or scale practice has no target. */
+    fun targetFor(measure: Measure, target: Int?): Int? = if (hasTarget(measure)) target else null
 
     /** The first problem with a practice, or null when it can be saved. [otherNames] are the other practices' names. */
     fun problem(name: String, measure: Measure, target: Int?, otherNames: List<String>): PracticeProblem? = when {

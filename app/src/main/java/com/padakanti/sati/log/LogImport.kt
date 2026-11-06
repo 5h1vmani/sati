@@ -27,7 +27,10 @@ sealed interface Parsed<out T> {
     data class Failed(val error: ImportError) : Parsed<Nothing>
 }
 
-/** One practice row of an exported file. [periods] are the archive periods as days: from, and to or null. */
+/**
+ * One practice row of an exported file. [periods] are the archive periods as days: from, and to or null.
+ * [askFocus] is null when the file has no ask_focus column, so the measure's default applies.
+ */
 data class FilePractice(
     val line: Int,
     val id: String,
@@ -37,12 +40,13 @@ data class FilePractice(
     val createdDay: Long,
     val archived: Boolean,
     val periods: List<Pair<Long, Long?>>,
+    val askFocus: Boolean? = null,
 )
 
 /**
  * One entry row. A row with an [id] came from an export and names its practice
  * by [practiceId]. A row without one is hand-made and names it by [practiceName].
- * [focus] is already a score from 1 to 10.
+ * [focus] is already a score from 1 to 10. [file] is the file inside a ZIP, empty for a hand-made CSV.
  */
 data class FileEntry(
     val line: Int,
@@ -54,7 +58,13 @@ data class FileEntry(
     val focus: Int?,
     val note: String?,
     val createdAt: Long?,
-)
+    val file: String = "",
+    /** The hand-made value ended in "%". Only a percent practice allows it. */
+    val percentSign: Boolean = false,
+) {
+    /** A row of a hand-made CSV, where any value of 1 or more means done for a done practice. */
+    val handMade: Boolean get() = file.isEmpty()
+}
 
 /** An import file after reading and checking its shape. Nothing is written yet. */
 data class ImportFile(
@@ -166,7 +176,8 @@ object LogImport {
                 is Parsed.Failed -> return fail(n.error.kind, line = r.line)
                 is Parsed.Ok -> n.value
             }
-            val value = valueText.toIntOrNull()?.takeIf { it in 1..EntryRules.MAX_VALUE }
+            // The practice and its measure are not known yet, so the value is only checked for the widest range.
+            val value = valueText.removeSuffix("%").trim().toIntOrNull()?.takeIf { it in 0..EntryRules.MAX_VALUE }
                 ?: return fail(ImportErrorKind.BadValue, line = r.line)
             val focus = if (focusText.isEmpty()) {
                 null
@@ -175,7 +186,7 @@ object LogImport {
                     ?: return fail(ImportErrorKind.BadFocus, line = r.line)
                 Focus.fromPercent(percent)
             }
-            FileEntry(r.line, null, null, name, d, value, focus, null, null)
+            FileEntry(r.line, null, null, name, d, value, focus, null, null, percentSign = valueText.endsWith("%"))
         }
         return Parsed.Ok(ImportFile(emptyList(), entries, null))
     }
@@ -197,17 +208,19 @@ object LogImport {
         return Parsed.Ok(ImportFile(practices, entries, sadhanas?.sadhanas, sadhanas?.skipped ?: 0))
     }
 
-    /** The data rows of one CSV file of an export, after checking its header row. */
-    private fun rowsOf(text: String, file: String, header: List<String>, dataRows: Int): Parsed<List<CsvRecord>> {
+    /**
+     * The data rows of one CSV file of an export, after checking its header row.
+     * The header may also be [oldHeader], which is the same without the last column.
+     */
+    private fun rowsOf(text: String, file: String, header: List<String>, dataRows: Int, oldHeader: List<String> = header): Parsed<List<CsvRecord>> {
         val records = when (val r = records(text, file, dataRows)) {
             is Parsed.Failed -> return r
             is Parsed.Ok -> r.value
         }
         val first = records.firstOrNull() ?: return fail(ImportErrorKind.Empty, file)
-        if (first.fields.map { it.trim().lowercase(Locale.ROOT) } != header) {
-            return fail(ImportErrorKind.WrongColumns, file, first.line)
-        }
-        records.drop(1).firstOrNull { it.fields.size != header.size }?.let {
+        val names = first.fields.map { it.trim().lowercase(Locale.ROOT) }
+        if (names != header && names != oldHeader) return fail(ImportErrorKind.WrongColumns, file, first.line)
+        records.drop(1).firstOrNull { it.fields.size != names.size }?.let {
             return fail(ImportErrorKind.WrongColumns, file, it.line)
         }
         return Parsed.Ok(records.drop(1))
@@ -215,7 +228,7 @@ object LogImport {
 
     private fun parsePractices(text: String): Parsed<List<FilePractice>> {
         val file = LogZip.PRACTICES
-        val rows = when (val r = rowsOf(text, file, LogExport.PRACTICE_HEADER, MAX_PRACTICES)) {
+        val rows = when (val r = rowsOf(text, file, LogExport.PRACTICE_HEADER, MAX_PRACTICES, LogExport.PRACTICE_HEADER_OLD)) {
             is Parsed.Failed -> return r
             is Parsed.Ok -> r.value
         }
@@ -226,6 +239,8 @@ object LogImport {
             val (id, rawName, measureText) = f
             val (targetText, createdText, archivedText) = f.drop(3)
             val periodsText = f[6]
+            // A file from before the focus switch has no eighth column.
+            val askText = f.getOrNull(7)
             if (!IdRules.valid(id) || !ids.add(id)) return fail(ImportErrorKind.BadId, file, r.line)
             val name = when (val n = cleanName(CsvGuard.unguard(rawName))) {
                 is Parsed.Failed -> return fail(n.error.kind, file, r.line)
@@ -244,6 +259,12 @@ object LogImport {
                 "false" -> false
                 else -> return fail(ImportErrorKind.BadFlag, file, r.line)
             }
+            val askFocus = when (askText?.lowercase(Locale.ROOT)) {
+                null -> null
+                "true" -> true
+                "false" -> false
+                else -> return fail(ImportErrorKind.BadFlag, file, r.line)
+            }
             val periods = if (periodsText.isEmpty()) {
                 emptyList()
             } else {
@@ -256,7 +277,7 @@ object LogImport {
                     from to to
                 }
             }
-            FilePractice(r.line, id, name, measure, PracticeRules.targetFor(measure, target), created, archived, periods)
+            FilePractice(r.line, id, name, measure, PracticeRules.targetFor(measure, target), created, archived, periods, askFocus)
         }
         return Parsed.Ok(out)
     }
@@ -281,7 +302,7 @@ object LogImport {
             }
             val d = day(f[3].trim()) ?: return fail(ImportErrorKind.BadDate, file, r.line)
             if (d > today) return fail(ImportErrorKind.FutureDay, file, r.line)
-            val value = f[4].trim().toIntOrNull()?.takeIf { it in 1..EntryRules.MAX_VALUE }
+            val value = f[4].trim().toIntOrNull()?.takeIf { it in 0..EntryRules.MAX_VALUE }
                 ?: return fail(ImportErrorKind.BadValue, file, r.line)
             val focusText = f[5].trim()
             val focus = if (focusText.isEmpty()) {
@@ -298,7 +319,7 @@ object LogImport {
             } else {
                 createdText.toLongOrNull()?.takeIf { it >= 0 } ?: return fail(ImportErrorKind.BadNumber, file, r.line)
             }
-            FileEntry(r.line, id, practiceId, name, d, value, focus, note, createdAt)
+            FileEntry(r.line, id, practiceId, name, d, value, focus, note, createdAt, file)
         }
         return Parsed.Ok(out)
     }
@@ -333,13 +354,19 @@ object LogImport {
     /** A practice that an unknown name will create, with the earliest day of its entries. */
     private class NewPractice(val id: String, val name: String, val measure: Measure) {
         var firstDay = Long.MAX_VALUE
+        var anyFocus = false
     }
 
     /**
      * Works out what importing [file] into [state] would write. [measures] holds
      * the measure for each unknown practice name; a name with no measure is
      * created as Minutes, and the screen shows it to the user first through
-     * [ImportChanges.unknownNames]. The id of every new row comes from [newId].
+     * [ImportChanges.unknownNames]. Every entry is checked against its
+     * practice's measure, except those of a practice whose measure is still a
+     * guess, which the second run checks. With [final], nothing is a guess,
+     * so every entry is checked. A new practice from a hand-made file
+     * asks for focus when any of its rows has one. The id of every new row
+     * comes from [newId].
      */
     fun merge(
         file: ImportFile,
@@ -347,6 +374,7 @@ object LogImport {
         measures: Map<String, Measure>,
         now: Long,
         newId: () -> String = { UUID.randomUUID().toString() },
+        final: Boolean = false,
     ): Parsed<ImportChanges> {
         val chosen = measures.mapKeys { key(it.key) }
         val existingById = state.practices.associateBy { it.id }
@@ -354,6 +382,8 @@ object LogImport {
         val idOf = mutableMapOf<String, String>()
         val idByName = state.practices.associate { key(it.name) to it.id }.toMutableMap()
         val measureById = state.practices.associate { it.id to it.measure }.toMutableMap()
+        // New practices whose measure the user has not chosen yet. Their entries are checked on the second run.
+        val guessed = mutableSetOf<String>()
         var position = (state.practices.maxOfOrNull { it.position } ?: -1) + 1
 
         val newPractices = mutableListOf<Practice>()
@@ -378,7 +408,10 @@ object LogImport {
                     idOf[fp.id] = fp.id
                     idByName[key(fp.name)] = fp.id
                     measureById[fp.id] = fp.measure
-                    newPractices += Practice(fp.id, fp.name, fp.measure, fp.target, fp.createdDay, fp.archived, position++)
+                    newPractices += Practice(
+                        fp.id, fp.name, fp.measure, fp.target, fp.createdDay, fp.archived, position++,
+                        fp.askFocus ?: PracticeRules.defaultAskFocus(fp.measure),
+                    )
                     fp.periods.forEach { (from, to) -> newPeriods += ArchivePeriod(practiceId = fp.id, fromDay = from, toDay = to) }
                 }
             }
@@ -402,14 +435,33 @@ object LogImport {
                 val k = key(fe.practiceName)
                 practiceId = idByName[k] ?: unknown.getOrPut(k) {
                     NewPractice(newId(), PracticeRules.clean(fe.practiceName), chosen[k] ?: Measure.Minutes)
-                        .also { idByName[k] = it.id; measureById[it.id] = it.measure }
+                        .also {
+                            idByName[k] = it.id
+                            measureById[it.id] = it.measure
+                            if (k !in chosen) guessed += it.id
+                        }
                 }.id
                 if (unknown.size > MAX_NEW_NAMES) {
                     return Parsed.Failed(ImportError(ImportErrorKind.TooMany, "", fe.line, MAX_NEW_NAMES))
                 }
             }
-            unknown[key(fe.practiceName)]?.takeIf { it.id == practiceId }?.let { it.firstDay = minOf(it.firstDay, fe.day) }
-            val value = if (measureById[practiceId] == Measure.Done) EntryRules.DONE_VALUE else fe.value
+            unknown[key(fe.practiceName)]?.takeIf { it.id == practiceId }?.let {
+                it.firstDay = minOf(it.firstDay, fe.day)
+                if (fe.focus != null) it.anyFocus = true
+            }
+            val measure = measureById.getValue(practiceId)
+            // A hand-made row of a done practice says done with any value of 1 or more.
+            val value = if (fe.handMade && measure == Measure.Done && fe.value >= EntryRules.DONE_VALUE) EntryRules.DONE_VALUE else fe.value
+            if (final || practiceId !in guessed) {
+                if (fe.percentSign && measure != Measure.Percent) {
+                    return Parsed.Failed(ImportError(ImportErrorKind.BadValue, fe.file, fe.line))
+                }
+                when (EntryRules.valueProblem(measure, value, fe.focus)) {
+                    EntryProblem.BadValue -> return Parsed.Failed(ImportError(ImportErrorKind.BadValue, fe.file, fe.line))
+                    EntryProblem.BadFocus -> return Parsed.Failed(ImportError(ImportErrorKind.BadFocus, fe.file, fe.line))
+                    else -> Unit
+                }
+            }
             if (fe.id != null) {
                 if (fe.id in existingEntryIds || !seenIds.add(fe.id)) {
                     skipped++
@@ -423,7 +475,10 @@ object LogImport {
         }
 
         for (np in unknown.values) {
-            newPractices += Practice(np.id, np.name, np.measure, null, np.firstDay, false, position++)
+            newPractices += Practice(
+                np.id, np.name, np.measure, null, np.firstDay, false, position++,
+                np.anyFocus || PracticeRules.defaultAskFocus(np.measure),
+            )
         }
         if (state.practices.size + newPractices.size > PracticeRules.MAX_PRACTICES) {
             return Parsed.Failed(ImportError(ImportErrorKind.PracticeLimit, limit = PracticeRules.MAX_PRACTICES))

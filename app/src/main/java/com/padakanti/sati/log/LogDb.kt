@@ -1,6 +1,7 @@
 package com.padakanti.sati.log
 
 import android.content.Context
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -14,11 +15,16 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Update
 import androidx.room.Upsert
+import androidx.room.migration.Migration
 import androidx.room.withTransaction
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
-/** How a practice is counted. One measure per practice. */
-enum class Measure { Minutes, Count, Done }
+/**
+ * How a practice is counted. One measure per practice. Room stores the name,
+ * and the screen keeps the ordinal, so a new measure goes at the end.
+ */
+enum class Measure { Minutes, Count, Done, Percent, Scale }
 
 /**
  * A practice the user keeps, such as Kriya Yoga. [createdDay] and every other
@@ -34,6 +40,8 @@ data class Practice(
     val archived: Boolean,
     /** Order on Today. Lower comes first. */
     val position: Int,
+    /** Whether the entry form asks for a focus score. Entries that already have a focus keep it when this is off. */
+    @ColumnInfo(defaultValue = "1") val askFocus: Boolean = true,
 )
 
 /**
@@ -135,7 +143,22 @@ interface LogDao {
     suspend fun openArchivePeriod(practiceId: String): ArchivePeriod?
 }
 
-@Database(entities = [Practice::class, ArchivePeriod::class, Entry::class], version = 1, exportSchema = true)
+/**
+ * Version 2 adds the focus switch. Old practices ask for focus, except done
+ * practices, which had no focus row before. Version 1 data must survive, so
+ * the migration only adds a column and sets it.
+ */
+const val ADD_ASK_FOCUS_SQL = "ALTER TABLE practices ADD COLUMN askFocus INTEGER NOT NULL DEFAULT 1"
+const val ASK_FOCUS_OFF_FOR_DONE_SQL = "UPDATE practices SET askFocus = 0 WHERE measure = 'Done'"
+
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(ADD_ASK_FOCUS_SQL)
+        db.execSQL(ASK_FOCUS_OFF_FOR_DONE_SQL)
+    }
+}
+
+@Database(entities = [Practice::class, ArchivePeriod::class, Entry::class], version = 2, exportSchema = true)
 abstract class LogDb : RoomDatabase() {
     abstract fun dao(): LogDao
 
@@ -149,6 +172,7 @@ abstract class LogDb : RoomDatabase() {
          */
         fun get(context: Context): LogDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, LogDb::class.java, "log.db")
+                .addMigrations(MIGRATION_1_2)
                 .build().also { instance = it }
         }
     }

@@ -26,23 +26,30 @@ internal fun measureName(measure: Measure): String = stringResource(
         Measure.Minutes -> R.string.log_measure_minutes
         Measure.Count -> R.string.log_measure_count
         Measure.Done -> R.string.log_measure_done
+        Measure.Percent -> R.string.log_measure_percent
+        Measure.Scale -> R.string.log_measure_scale
     },
 )
 
-/** An amount such as "20 minutes", "108 cycles" or "Done". */
+/** An amount such as "20 minutes", "108 cycles", "Done", "Not done", "72%" or "7 of 10". */
 @Composable
 internal fun amountText(measure: Measure, value: Int): String = when (measure) {
     Measure.Minutes -> pluralStringResource(R.plurals.log_minutes, value, value)
     Measure.Count -> pluralStringResource(R.plurals.log_cycles, value, value)
-    Measure.Done -> stringResource(R.string.log_done)
+    Measure.Done -> stringResource(if (value == EntryRules.NOT_DONE_VALUE) R.string.log_not_done else R.string.log_done)
+    Measure.Percent -> stringResource(R.string.log_percent_value, value)
+    Measure.Scale -> stringResource(R.string.log_scale_value, value, EntryRules.SCALE_MAX)
 }
 
 /** The progress of one Today row, such as "80 of 108 cycles". */
 @Composable
 internal fun progressText(row: TodayRow): String {
     val target = row.target
+    val rating = row.rating
     return when {
-        row.practice.measure == Measure.Done -> stringResource(if (row.done) R.string.log_done else R.string.log_not_done_yet)
+        row.practice.measure == Measure.Done ->
+            stringResource(if (row.done) R.string.log_done else if (row.notDone) R.string.log_not_done else R.string.log_not_done_yet)
+        rating != null -> amountText(row.practice.measure, rating)
         target != null && row.practice.measure == Measure.Minutes ->
             pluralStringResource(R.plurals.log_minutes_of_target, target, row.total, target)
         target != null -> pluralStringResource(R.plurals.log_cycles_of_target, target, row.total, target)
@@ -59,8 +66,13 @@ internal fun dayLabel(day: Long, today: Long): String = when (day) {
 }
 
 @Composable
-internal fun entryProblemText(problem: EntryProblem): String = when (problem) {
-    EntryProblem.BadValue -> stringResource(R.string.log_problem_value, EntryRules.MAX_VALUE)
+internal fun entryProblemText(problem: EntryProblem, measure: Measure): String = when (problem) {
+    EntryProblem.BadValue -> when (measure) {
+        Measure.Minutes, Measure.Count -> stringResource(R.string.log_problem_value, EntryRules.MAX_VALUE)
+        Measure.Done -> stringResource(R.string.log_problem_value_done)
+        Measure.Percent -> stringResource(R.string.log_problem_value_range, EntryRules.PERCENT_MIN, EntryRules.PERCENT_MAX)
+        Measure.Scale -> stringResource(R.string.log_problem_value_range, EntryRules.SCALE_MIN, EntryRules.SCALE_MAX)
+    }
     EntryProblem.BadFocus -> stringResource(R.string.log_problem_focus)
     EntryProblem.NoteTooLong -> pluralStringResource(R.plurals.log_problem_note, EntryRules.MAX_NOTE, EntryRules.MAX_NOTE)
     EntryProblem.NoteBadChars -> stringResource(R.string.log_problem_note_chars)

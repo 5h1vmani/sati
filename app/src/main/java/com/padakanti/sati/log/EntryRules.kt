@@ -24,17 +24,45 @@ object EntryRules {
     const val MAX_VALUE = 99_999
     const val MAX_NOTE = 1_000
 
-    /** A done entry always has value 1. */
+    /** A done entry has value 1. A not-done entry has value 0. */
     const val DONE_VALUE = 1
+    const val NOT_DONE_VALUE = 0
+
+    /** A percent entry is from 0 to 100. A scale entry is a score from 1 to 10. */
+    const val PERCENT_MIN = 0
+    const val PERCENT_MAX = 100
+    const val SCALE_MIN = 1
+    const val SCALE_MAX = 10
+
+    /** The values an entry of a practice measured as [measure] may have. */
+    fun valueRange(measure: Measure): IntRange = when (measure) {
+        Measure.Minutes, Measure.Count -> 1..MAX_VALUE
+        Measure.Done -> NOT_DONE_VALUE..DONE_VALUE
+        Measure.Percent -> PERCENT_MIN..PERCENT_MAX
+        Measure.Scale -> SCALE_MIN..SCALE_MAX
+    }
+
+    /**
+     * Checks the value and the focus of an entry against its [measure]. Returns
+     * BadValue, BadFocus, or null when both are fine. The entry form and the
+     * import both use it, so they accept the same entries. A not-done entry
+     * has no focus.
+     */
+    fun valueProblem(measure: Measure, value: Int?, focus: Int?): EntryProblem? = when {
+        value == null || value !in valueRange(measure) -> EntryProblem.BadValue
+        focus != null && focus !in Focus.MIN..Focus.MAX -> EntryProblem.BadFocus
+        focus != null && measure == Measure.Done && value == NOT_DONE_VALUE -> EntryProblem.BadFocus
+        else -> null
+    }
 
     /** The first problem with an entry of a practice measured as [measure], or null when it can be saved. */
     fun problem(measure: Measure, value: Int?, focus: Int?, note: String?, day: Long, today: Long): EntryProblem? = when {
         day > today -> EntryProblem.FutureDay
-        measure != Measure.Done && (value == null || value !in 1..MAX_VALUE) -> EntryProblem.BadValue
-        measure == Measure.Done && value != DONE_VALUE -> EntryProblem.BadValue
-        focus != null && focus !in Focus.MIN..Focus.MAX -> EntryProblem.BadFocus
-        note != null && note.length > MAX_NOTE -> EntryProblem.NoteTooLong
-        note != null && TextRules.hasHidden(note, allowNewlines = true) -> EntryProblem.NoteBadChars
-        else -> null
+        else -> valueProblem(measure, value, focus)
+            ?: when {
+                note != null && note.length > MAX_NOTE -> EntryProblem.NoteTooLong
+                note != null && TextRules.hasHidden(note, allowNewlines = true) -> EntryProblem.NoteBadChars
+                else -> null
+            }
     }
 }

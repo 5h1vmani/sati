@@ -50,9 +50,77 @@ class EntryRulesTest {
         assertEquals(EntryProblem.BadValue, problem(value = EntryRules.MAX_VALUE + 1))
     }
 
-    @Test fun doneAlwaysHasValueOne() {
+    @Test fun doneHasValueZeroOrOne() {
         assertNull(problem(measure = Measure.Done, value = 1, focus = null))
+        assertNull(problem(measure = Measure.Done, value = 0, focus = null))
         assertEquals(EntryProblem.BadValue, problem(measure = Measure.Done, value = 2, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Done, value = -1, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Done, value = null, focus = null))
+    }
+
+    @Test fun aNotDoneEntryHasNoFocus() {
+        assertEquals(EntryProblem.BadFocus, problem(measure = Measure.Done, value = 0, focus = 5))
+        assertNull(problem(measure = Measure.Done, value = 1, focus = 5))
+    }
+
+    @Test fun percentIsZeroToOneHundred() {
+        assertNull(problem(measure = Measure.Percent, value = 0, focus = null))
+        assertNull(problem(measure = Measure.Percent, value = 100, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Percent, value = 101, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Percent, value = -1, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Percent, value = null, focus = null))
+    }
+
+    @Test fun scaleIsOneToTen() {
+        assertNull(problem(measure = Measure.Scale, value = 1, focus = null))
+        assertNull(problem(measure = Measure.Scale, value = 10, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Scale, value = 0, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Scale, value = 11, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Scale, value = null, focus = null))
+    }
+
+    @Test fun minutesAndCountAreOneToTheMaximum() {
+        listOf(Measure.Minutes, Measure.Count).forEach {
+            assertNull(problem(measure = it, value = 1))
+            assertNull(problem(measure = it, value = EntryRules.MAX_VALUE))
+            assertEquals(EntryProblem.BadValue, problem(measure = it, value = 0))
+            assertEquals(EntryProblem.BadValue, problem(measure = it, value = EntryRules.MAX_VALUE + 1))
+        }
+    }
+
+    @Test fun everyMeasureMayHaveAFocusFromOneToTen() {
+        Measure.entries.forEach {
+            val value = if (it == Measure.Done) 1 else 5
+            assertNull("$it", problem(measure = it, value = value, focus = 10))
+            assertEquals("$it", EntryProblem.BadFocus, problem(measure = it, value = value, focus = 11))
+            assertEquals("$it", EntryProblem.BadFocus, problem(measure = it, value = value, focus = 0))
+        }
+    }
+
+    @Test fun theRangesAreTheNamedConstants() {
+        assertEquals(0..1, EntryRules.valueRange(Measure.Done))
+        assertEquals(0..100, EntryRules.valueRange(Measure.Percent))
+        assertEquals(1..10, EntryRules.valueRange(Measure.Scale))
+        assertEquals(1..99_999, EntryRules.valueRange(Measure.Count))
+        assertEquals(0, EntryRules.NOT_DONE_VALUE)
+        assertEquals(1, EntryRules.DONE_VALUE)
+    }
+
+    @Test fun theFocusSwitchStartsOnlyForMinutesAndCount() {
+        assertEquals(true, PracticeRules.defaultAskFocus(Measure.Minutes))
+        assertEquals(true, PracticeRules.defaultAskFocus(Measure.Count))
+        assertEquals(false, PracticeRules.defaultAskFocus(Measure.Done))
+        assertEquals(false, PracticeRules.defaultAskFocus(Measure.Percent))
+        assertEquals(false, PracticeRules.defaultAskFocus(Measure.Scale))
+    }
+
+    @Test fun onlyMinutesAndCountHaveATarget() {
+        assertEquals(30, PracticeRules.targetFor(Measure.Minutes, 30))
+        assertEquals(108, PracticeRules.targetFor(Measure.Count, 108))
+        assertNull(PracticeRules.targetFor(Measure.Done, 5))
+        assertNull(PracticeRules.targetFor(Measure.Percent, 5))
+        assertNull(PracticeRules.targetFor(Measure.Scale, 5))
+        assertNull(PracticeRules.problem("A", Measure.Percent, 0, emptyList()))
     }
 
     @Test fun focusMustBeOneToTen() {

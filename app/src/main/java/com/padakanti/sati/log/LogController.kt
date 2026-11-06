@@ -66,6 +66,7 @@ object LogController {
         name: String,
         measure: Measure,
         target: Int?,
+        askFocus: Boolean,
         now: Long = System.currentTimeMillis(),
     ): PracticeProblem? {
         val db = LogDb.get(context)
@@ -84,6 +85,7 @@ object LogController {
                     createdDay = today(now),
                     archived = false,
                     position = dao.nextPosition(),
+                    askFocus = askFocus,
                 ),
             )
             null
@@ -91,11 +93,11 @@ object LogController {
     }
 
     /**
-     * Changes a practice's name, target or measure. The measure changes only
+     * Changes a practice's name, target, measure or focus switch. The measure changes only
      * while the practice has no entries, because old entries would no longer
      * match it. Returns what is wrong, or null when it was saved.
      */
-    suspend fun editPractice(context: Context, id: String, name: String, measure: Measure, target: Int?): PracticeProblem? {
+    suspend fun editPractice(context: Context, id: String, name: String, measure: Measure, target: Int?, askFocus: Boolean): PracticeProblem? {
         val db = LogDb.get(context)
         return db.inTransaction {
             val dao = db.dao()
@@ -104,7 +106,9 @@ object LogController {
             val problem = PracticeRules.problem(name, measure, target, others)
             if (problem != null) return@inTransaction problem
             PracticeRules.measureProblem(old.measure, measure, dao.entryCount(id))?.let { return@inTransaction it }
-            dao.upsertPractice(old.copy(name = PracticeRules.clean(name), measure = measure, target = PracticeRules.targetFor(measure, target)))
+            dao.upsertPractice(
+                old.copy(name = PracticeRules.clean(name), measure = measure, target = PracticeRules.targetFor(measure, target), askFocus = askFocus),
+            )
             null
         }
     }
@@ -138,7 +142,8 @@ object LogController {
 
     /**
      * Adds an entry on [day], which is today unless the user chose a past day.
-     * [value] is ignored for a done practice, which always logs 1.
+     * [value] must fit the measure: for a done practice it is 1 for done or 0
+     * for not done, and a not-done entry has no focus.
      */
     suspend fun addEntry(
         context: Context,
@@ -150,10 +155,9 @@ object LogController {
         now: Long = System.currentTimeMillis(),
     ): Saved {
         val practice = dao(context).practiceById(practiceId) ?: return Saved(null, EntryProblem.NoPractice)
-        val v = if (practice.measure == Measure.Done) EntryRules.DONE_VALUE else value
         val n = note?.trim()?.ifEmpty { null }
-        EntryRules.problem(practice.measure, v, focus, n, day, today(now))?.let { return Saved(null, it) }
-        val entry = Entry(newId(), practiceId, day, v!!, focus, n, now)
+        EntryRules.problem(practice.measure, value, focus, n, day, today(now))?.let { return Saved(null, it) }
+        val entry = Entry(newId(), practiceId, day, value!!, focus, n, now)
         dao(context).upsertEntry(entry)
         return Saved(entry, null)
     }
@@ -161,14 +165,21 @@ object LogController {
     /**
      * The one-tap log of a done practice, for today. Returns the entry, so the
      * screen can offer Undo. Returns null, and adds nothing, when the practice
-     * is already done today, so a double tap logs once.
+     * already has an entry today, so a double tap logs once.
      */
-    suspend fun logDone(context: Context, practiceId: String, now: Long = System.currentTimeMillis()): Entry? {
+    suspend fun logDone(context: Context, practiceId: String, now: Long = System.currentTimeMillis()): Entry? =
+        logOnce(context, practiceId, EntryRules.DONE_VALUE, now)
+
+    /** Like [logDone], but marks the practice as not done today. Adds nothing when it already has an entry today. */
+    suspend fun logNotDone(context: Context, practiceId: String, now: Long = System.currentTimeMillis()): Entry? =
+        logOnce(context, practiceId, EntryRules.NOT_DONE_VALUE, now)
+
+    private suspend fun logOnce(context: Context, practiceId: String, value: Int, now: Long): Entry? {
         val db = LogDb.get(context)
         return db.inTransaction {
             val day = today(now)
             if (db.dao().entryCountOn(practiceId, day) > 0) return@inTransaction null
-            addEntry(context, practiceId, day, EntryRules.DONE_VALUE, null, null, now).entry
+            addEntry(context, practiceId, day, value, null, null, now).entry
         }
     }
 
@@ -183,10 +194,9 @@ object LogController {
         now: Long = System.currentTimeMillis(),
     ): EntryProblem? {
         val practice = dao(context).practiceById(entry.practiceId) ?: return EntryProblem.NoPractice
-        val v = if (practice.measure == Measure.Done) EntryRules.DONE_VALUE else value
         val n = note?.trim()?.ifEmpty { null }
-        EntryRules.problem(practice.measure, v, focus, n, day, today(now))?.let { return it }
-        dao(context).upsertEntry(entry.copy(day = day, value = v!!, focus = focus, note = n))
+        EntryRules.problem(practice.measure, value, focus, n, day, today(now))?.let { return it }
+        dao(context).upsertEntry(entry.copy(day = day, value = value!!, focus = focus, note = n))
         return null
     }
 
@@ -194,10 +204,14 @@ object LogController {
         dao(context).deleteEntry(id)
     }
 
-    /** Puts a deleted entry back. False when its practice was deleted meanwhile. */
+    /**
+     * Puts a deleted entry back. False when its practice was deleted meanwhile,
+     * or its measure changed so the entry no longer fits.
+     */
     suspend fun undoDelete(context: Context, entry: Entry): Boolean {
         val dao = dao(context)
-        if (dao.practiceById(entry.practiceId) == null) return false
+        val practice = dao.practiceById(entry.practiceId) ?: return false
+        if (EntryRules.valueProblem(practice.measure, entry.value, entry.focus) != null) return false
         dao.upsertEntry(entry)
         return true
     }
@@ -293,7 +307,7 @@ object LogController {
             val dao = db.dao()
             // Read inside the transaction, so nothing can change between the check and the write.
             val state = LogState(dao.allPractices(), dao.allEntries())
-            val merged = LogImport.merge(file, state, measures, now)
+            val merged = LogImport.merge(file, state, measures, now, final = true)
             if (merged is Parsed.Ok) {
                 val c = merged.value
                 c.practices.forEach { dao.upsertPractice(it) }

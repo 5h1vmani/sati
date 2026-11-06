@@ -16,9 +16,12 @@ object ExportReminder {
         return ChronoUnit.DAYS.between(from, to).toInt().coerceAtLeast(0)
     }
 
-    /** True when there is something to lose and no export yet, or the last export is over 30 days old. */
-    fun shouldAsk(lastExport: Long, now: Long, zone: ZoneId, hasEntries: Boolean): Boolean {
-        val days = daysSince(lastExport, now, zone)
-        return if (days == null) hasEntries else days > ASK_AFTER_DAYS
+    /** True when there is something to lose and no export yet. The Backup card says so, not the top of the tab. */
+    fun shouldAskFirst(lastExport: Long, hasEntries: Boolean): Boolean = lastExport <= 0 && hasEntries
+
+    /** True when the last export is over 30 days old. The top of the tab says so. */
+    fun shouldRemind(lastExport: Long, now: Long, zone: ZoneId): Boolean {
+        val days = daysSince(lastExport, now, zone) ?: return false
+        return days > ASK_AFTER_DAYS
     }
 }

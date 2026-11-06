@@ -1,23 +1,30 @@
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.padakanti.sati.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -26,16 +33,17 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -54,9 +62,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
@@ -73,6 +83,7 @@ import com.padakanti.sati.log.LogDay
 import com.padakanti.sati.log.Measure
 import com.padakanti.sati.log.Practice
 import com.padakanti.sati.log.PracticeProblem
+import com.padakanti.sati.log.PracticeRules
 import com.padakanti.sati.log.Prefill
 import kotlinx.coroutines.launch
 
@@ -80,9 +91,11 @@ private const val MILLIS_PER_DAY = 86_400_000L
 
 /**
  * The short form for one entry, as a bottom sheet. The value is filled in.
- * A tap on a focus button saves. A done practice has no value and no focus,
- * so it has one Save button. [onSubmit] returns what is wrong, or null when
- * the entry was saved.
+ * When the practice asks for focus, a tap on a focus button saves, and "No
+ * score" saves without one. Otherwise one Save button saves. A scale practice
+ * picks its value in a row of ten buttons first. A done practice chooses Done
+ * or Not done, and a not-done entry has no focus. [onSubmit] returns what is
+ * wrong, or null when the entry was saved.
  */
 @Composable
 internal fun EntrySheet(
@@ -95,16 +108,34 @@ internal fun EntrySheet(
     val context = LocalContext.current.applicationContext
     val uiScope = rememberCoroutineScope()
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val isDone = practice.measure == Measure.Done
+    val measure = practice.measure
+    val isDone = measure == Measure.Done
+    val isScale = measure == Measure.Scale
     var day by rememberSaveable { mutableLongStateOf(entry?.day ?: today) }
     // The target fills the value at once. Only a practice without a target waits for the last value.
     var valueText by rememberSaveable { mutableStateOf(entry?.value?.toString() ?: practice.target?.toString() ?: "") }
-    var ready by rememberSaveable { mutableStateOf(entry != null || isDone || practice.target != null) }
+    var ready by rememberSaveable { mutableStateOf(entry != null || isDone || isScale || practice.target != null) }
+    // The chosen score of a scale practice, and the choice of a done practice. A new done entry is done.
+    var scaleValue by rememberSaveable { mutableStateOf(if (isScale) entry?.value else null) }
+    var doneChoice by rememberSaveable { mutableStateOf(entry?.value != EntryRules.NOT_DONE_VALUE) }
     var note by rememberSaveable { mutableStateOf(entry?.note ?: "") }
     var noteShown by rememberSaveable { mutableStateOf(!entry?.note.isNullOrEmpty()) }
     var problem by remember { mutableStateOf<EntryProblem?>(null) }
     var picking by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
+
+    val asksFocus = practice.askFocus
+    // A not-done entry never has a focus.
+    val countsAsDone = !isDone || doneChoice
+    val showFocus = asksFocus && countsAsDone
+    // With no focus row, an edit keeps the focus the entry already has.
+    val keptFocus = if (countsAsDone) entry?.focus else null
+    val value = when {
+        isDone -> if (doneChoice) EntryRules.DONE_VALUE else EntryRules.NOT_DONE_VALUE
+        isScale -> scaleValue
+        else -> valueText.toIntOrNull()
+    }
+    val canSave = ready && !saving && (!isScale || scaleValue != null)
 
     // The value starts as the target, else the last value, else empty. The save buttons wait for it.
     LaunchedEffect(practice.id) {
@@ -115,7 +146,7 @@ internal fun EntrySheet(
         ready = true
     }
 
-    fun save(focus: Int?) {
+    fun save(focus: Int?, savedValue: Int? = value) {
         if (saving || !ready) return
         saving = true
         // The write runs in the controller's scope, so leaving the screen does not stop it.
@@ -123,7 +154,7 @@ internal fun EntrySheet(
             var problemFound: EntryProblem? = null
             var finished = false
             try {
-                problemFound = onSubmit(day, if (isDone) EntryRules.DONE_VALUE else valueText.toIntOrNull(), focus, note)
+                problemFound = onSubmit(day, savedValue, focus, note)
                 finished = true
             } finally {
                 // If the write threw, the sheet must still work again, so saving is always reset.
@@ -146,7 +177,9 @@ internal fun EntrySheet(
         Column(
             Modifier
                 .fillMaxWidth()
-                .imePadding()
+                // The sheet pads for the system bars by itself, and an inset that is already used counts as zero here.
+                // This makes sure the last button clears the navigation bar, and the keyboard when it is open.
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 24.dp),
@@ -156,20 +189,46 @@ internal fun EntrySheet(
                 if (entry == null) stringResource(R.string.log_entry_new_title, practice.name) else stringResource(R.string.log_entry_edit_title),
                 style = MaterialTheme.typography.titleLarge,
             )
-            if (!isDone) {
+            if (isDone) {
+                Column(Modifier.selectableGroup()) {
+                    ChoiceRow(stringResource(R.string.log_done), selected = doneChoice) { doneChoice = true }
+                    ChoiceRow(stringResource(R.string.log_not_done), selected = !doneChoice) { doneChoice = false }
+                }
+            }
+            if (!isDone && !isScale) {
                 OutlinedTextField(
                     value = valueText,
-                    onValueChange = { v -> valueText = v.filter(Char::isDigit).take(5) },
+                    onValueChange = { v -> valueText = v.filter(Char::isDigit).take(if (measure == Measure.Percent) 3 else 5) },
                     label = {
-                        Text(stringResource(if (practice.measure == Measure.Minutes) R.string.log_value_minutes else R.string.log_value_cycles))
+                        Text(
+                            stringResource(
+                                when (measure) {
+                                    Measure.Minutes -> R.string.log_value_minutes
+                                    Measure.Percent -> R.string.log_value_percent
+                                    else -> R.string.log_value_cycles
+                                },
+                            ),
+                        )
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+            if (isScale) {
+                Text(stringResource(R.string.log_score), style = MaterialTheme.typography.titleSmall)
+                FocusRow(
+                    selected = scaleValue,
+                    enabled = ready && !saving,
+                    descriptionRes = R.string.log_score_button,
+                    // With a focus row below, the tap only selects. Without one, it saves.
+                    onPick = { n -> if (asksFocus) scaleValue = n else save(entry?.focus, savedValue = n) },
+                )
+            }
+            if (showFocus) {
                 Text(stringResource(R.string.log_focus), style = MaterialTheme.typography.titleSmall)
-                FocusRow(selected = entry?.focus, enabled = ready && !saving, onPick = ::save)
-                OutlinedButton(onClick = { save(null) }, enabled = ready && !saving, modifier = Modifier.fillMaxWidth()) {
+                FocusRow(selected = entry?.focus, enabled = canSave, descriptionRes = R.string.log_focus_button, onPick = { save(it) })
+                OutlinedButton(onClick = { save(null) }, enabled = canSave, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.log_no_score))
                 }
             }
@@ -189,15 +248,22 @@ internal fun EntrySheet(
             } else {
                 TextButton(onClick = { noteShown = true }) { Text(stringResource(R.string.log_add_note)) }
             }
-            if (isDone) {
-                Button(onClick = { save(null) }, enabled = !saving, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.log_save)) }
-            } else if (entry != null) {
+            if (showFocus) {
                 // Editing: this keeps the old score, so a change of note or value does not wipe it.
-                Button(onClick = { save(entry.focus) }, enabled = ready && !saving, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.log_save_keep_focus))
+                if (entry != null) {
+                    Button(onClick = { save(entry.focus) }, enabled = canSave, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.log_save_keep_focus))
+                    }
+                }
+            } else if (!(isScale && !asksFocus)) {
+                // A scale practice without a focus row has already saved on the tap of its value.
+                Button(onClick = { save(keptFocus) }, enabled = canSave, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.log_save))
                 }
             }
-            problem?.let { Text(entryProblemText(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+            problem?.let {
+                Text(entryProblemText(it, measure), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 
@@ -206,17 +272,38 @@ internal fun EntrySheet(
     }
 }
 
+/** One radio row, at least 48 dp tall. A vertical list of these fits any width and any font size. */
+@Composable
+private fun ChoiceRow(label: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 48.dp)
+            .selectable(selected = selected, enabled = enabled, role = Role.RadioButton, onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
+        Spacer(Modifier.width(12.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+        )
+    }
+}
+
 /**
  * Ten buttons, 1 to 10, in two rows of five. Each is at least 48 dp wide and
- * tall. A tap calls [onPick]. [selected] is the current score when an entry is edited.
+ * tall. A tap calls [onPick]. [selected] is the current number when an entry is edited.
+ * [descriptionRes] is the spoken label of a button, with the number in it.
  */
 @Composable
-private fun FocusRow(selected: Int?, enabled: Boolean, onPick: (Int) -> Unit) {
+private fun FocusRow(selected: Int?, enabled: Boolean, @StringRes descriptionRes: Int, onPick: (Int) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(Focus.MIN..5, 6..Focus.MAX).forEach { numbers ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 numbers.forEach { n ->
-                    val description = stringResource(R.string.log_focus_button, n)
+                    val description = stringResource(descriptionRes, n)
                     Surface(
                         onClick = { onPick(n) },
                         enabled = enabled,
@@ -261,11 +348,13 @@ private fun DayPicker(day: Long, today: Long, onPick: (Long) -> Unit, onDismiss:
     ) { DatePicker(state = state) }
 }
 
+private fun measureOf(index: Int): Measure = Measure.entries[index]
+
 /** A full-screen editor for a new practice, or for [initial]. [onSave] returns what is wrong, or null when it was saved. */
 @Composable
 internal fun PracticeEditor(
     initial: Practice?,
-    onSave: suspend (name: String, measure: Measure, target: Int?) -> PracticeProblem?,
+    onSave: suspend (name: String, measure: Measure, target: Int?, askFocus: Boolean) -> PracticeProblem?,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
@@ -273,10 +362,13 @@ internal fun PracticeEditor(
     var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
     var measureIndex by rememberSaveable { mutableIntStateOf((initial?.measure ?: Measure.Minutes).ordinal) }
     var targetText by rememberSaveable { mutableStateOf(initial?.target?.toString() ?: "") }
+    // The focus switch follows the measure's default until the user touches it.
+    var askFocus by rememberSaveable { mutableStateOf(initial?.askFocus ?: PracticeRules.defaultAskFocus(measureOf(measureIndex))) }
+    var focusTouched by rememberSaveable { mutableStateOf(false) }
     var problem by remember { mutableStateOf<PracticeProblem?>(null) }
     var hasEntries by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
-    val measure = Measure.entries[measureIndex]
+    val measure = measureOf(measureIndex)
 
     // The measure can change only while there are no entries.
     LaunchedEffect(initial?.id) {
@@ -297,7 +389,7 @@ internal fun PracticeEditor(
             var found: PracticeProblem? = null
             var finished = false
             try {
-                found = onSave(name, measure, target)
+                found = onSave(name, measure, target, askFocus)
                 finished = true
             } finally {
                 uiScope.launch {
@@ -346,14 +438,17 @@ internal fun PracticeEditor(
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(stringResource(R.string.log_measure), style = MaterialTheme.typography.titleMedium)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // A vertical list, because five measures do not fit in one row at a large font size.
+                    Column(Modifier.selectableGroup()) {
                         Measure.entries.forEach { m ->
-                            FilterChip(
+                            ChoiceRow(
+                                measureName(m),
                                 selected = measure == m,
-                                onClick = { measureIndex = m.ordinal },
-                                label = { Text(measureName(m)) },
                                 enabled = !hasEntries || m == initial?.measure,
-                            )
+                            ) {
+                                measureIndex = m.ordinal
+                                if (!focusTouched) askFocus = PracticeRules.defaultAskFocus(m)
+                            }
                         }
                     }
                     if (hasEntries) {
@@ -364,7 +459,7 @@ internal fun PracticeEditor(
                         )
                     }
                 }
-                if (measure != Measure.Done) {
+                if (PracticeRules.hasTarget(measure)) {
                     OutlinedTextField(
                         value = targetText,
                         onValueChange = { v -> targetText = v.filter(Char::isDigit).take(5) },
@@ -373,6 +468,16 @@ internal fun PracticeEditor(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                     )
+                }
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .toggleable(value = askFocus, role = Role.Switch, onValueChange = { askFocus = it; focusTouched = true }),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.log_ask_focus), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                    Switch(checked = askFocus, onCheckedChange = null)
                 }
                 problem?.let { Text(practiceProblemText(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
             }
@@ -391,16 +496,10 @@ internal fun MeasureDialog(names: List<String>, onImport: (Map<String, Measure>)
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.log_import_ask_body), style = MaterialTheme.typography.bodyMedium)
                 names.forEach { name ->
-                    Column {
+                    Column(Modifier.selectableGroup()) {
                         Text(name, style = MaterialTheme.typography.titleSmall)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Measure.entries.forEach { m ->
-                                FilterChip(
-                                    selected = chosen[name] == m,
-                                    onClick = { chosen[name] = m },
-                                    label = { Text(measureName(m)) },
-                                )
-                            }
+                        Measure.entries.forEach { m ->
+                            ChoiceRow(measureName(m), selected = chosen[name] == m) { chosen[name] = m }
                         }
                     }
                 }

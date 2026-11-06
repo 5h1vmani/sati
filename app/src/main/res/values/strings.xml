@@ -34,19 +34,18 @@
     <string name="log_marked_not_done">Marked %1$s as not done.</string>
     <string name="log_percent_value">%1$d%%</string>
     <string name="log_scale_value">%1$d of %2$d</string>
+    <string name="log_duration_s">%1$d s</string>
+    <string name="log_duration_min">%1$d min</string>
+    <string name="log_duration_min_s">%1$d min %2$d s</string>
+    <string name="log_progress_of">%1$s of %2$s</string>
+    <string name="log_not_due_heading">Not due today</string>
+    <string name="log_next_due">Next due: %1$s</string>
+    <string name="log_due_today">Due today</string>
     <string name="log_focus_average">Average focus %1$.1f of 10</string>
     <string name="log_focus_value">Focus %1$d of 10</string>
-    <plurals name="log_minutes">
-        <item quantity="one">%d minute</item>
-        <item quantity="other">%d minutes</item>
-    </plurals>
     <plurals name="log_cycles">
         <item quantity="one">%d cycle</item>
         <item quantity="other">%d cycles</item>
-    </plurals>
-    <plurals name="log_minutes_of_target">
-        <item quantity="one">%1$d of %2$d minute</item>
-        <item quantity="other">%1$d of %2$d minutes</item>
     </plurals>
     <plurals name="log_cycles_of_target">
         <item quantity="one">%1$d of %2$d cycle</item>
@@ -58,6 +57,8 @@
     <string name="log_entry_edit_title">Edit entry</string>
     <string name="log_value_minutes">Minutes</string>
     <string name="log_value_cycles">Cycles</string>
+    <string name="log_value_seconds">Seconds</string>
+    <string name="log_add_another">Add another entry</string>
     <string name="log_value_percent">Percent</string>
     <string name="log_score">Score</string>
     <string name="log_score_button">Score %1$d of 10</string>
@@ -68,9 +69,12 @@
     <string name="log_focus">Focus</string>
     <string name="log_focus_button">Focus %1$d of 10</string>
     <string name="log_no_score">No score</string>
-    <string name="log_problem_value">Enter a whole number from 1 to %1$d.</string>
+    <string name="log_problem_value">Enter a whole number from 1 to %1$d. To mark not done, use the Not done button.</string>
+    <string name="log_problem_value_duration">Enter minutes, seconds or both. The total must be from 1 second to 24 hours. To mark not done, use the Not done button.</string>
+    <string name="log_problem_schedule">A practice can repeat every 1 to 7 days.</string>
+    <string name="log_problem_target_duration">The target must be from 1 second to 24 hours.</string>
     <string name="log_problem_focus">Focus is a score from 1 to 10. A practice marked not done has no focus.</string>
-    <string name="log_problem_value_range">Enter a whole number from %1$d to %2$d.</string>
+    <string name="log_problem_value_range">Enter a whole number from %1$d to %2$d. To mark not done, use the Not done button.</string>
     <string name="log_problem_value_done">Choose Done or Not done.</string>
     <plurals name="log_problem_note">
         <item quantity="one">A note can have up to %d character.</item>
@@ -87,17 +91,29 @@
     <string name="log_edit_entry">Edit entry</string>
     <string name="log_delete_entry">Delete entry</string>
     <string name="log_entry_deleted">Entry deleted.</string>
+    <string name="log_undo_failed">The entry cannot come back, because its practice was changed or deleted.</string>
     <string name="log_show_more">Show more entries</string>
 
     <!-- Practices list and editor -->
     <string name="log_practices_title">Practices</string>
     <string name="log_no_practices">You have no practices yet.</string>
-    <string name="log_measure_minutes">Minutes</string>
+    <string name="log_measure_duration">Duration</string>
     <string name="log_measure_count">Cycles</string>
     <string name="log_measure_done">Done</string>
     <string name="log_measure_percent">Percent</string>
     <string name="log_measure_scale">Scale</string>
     <string name="log_ask_focus">Ask for focus</string>
+    <string name="log_repeat">Repeat</string>
+    <string name="log_every_day">Every day</string>
+    <plurals name="log_every_n_days">
+        <item quantity="one">Every %d day</item>
+        <item quantity="other">Every %d days</item>
+    </plurals>
+    <string name="log_fewer_days">Repeat fewer days</string>
+    <string name="log_more_days">Repeat more days</string>
+    <string name="log_starts_on">Starts on</string>
+    <string name="log_move_up">Move %1$s up</string>
+    <string name="log_move_down">Move %1$s down</string>
     <string name="log_measure_line_target">%1$s. Target: %2$s.</string>
     <string name="log_archived">Archived</string>
     <string name="log_archive_practice">Archive %1$s</string>
@@ -183,12 +199,12 @@
     <string name="log_error_name">The name is empty, too long, or used twice.</string>
     <string name="log_error_text">A name or note has a control or hidden character.</string>
     <string name="log_error_too_many">The file has more rows or practices than the limit of %1$d.</string>
-    <string name="log_error_measure">The measure must be minutes, count, done, percent or scale.</string>
+    <string name="log_error_measure">The measure must be duration, count, done, percent or scale.</string>
     <string name="log_error_target">The target must be a whole number from 1 to %1$d.</string>
     <string name="log_error_flag">Archived and ask_focus must be true or false.</string>
     <string name="log_error_date">The date is not valid. Write it as yyyy-mm-dd.</string>
     <string name="log_error_future">The day has not come yet.</string>
-    <string name="log_error_value">The value does not fit the measure. Use 1 to %1$d for minutes and cycles, 0 or 1 for done, 0 to 100 for percent, and 1 to 10 for scale.</string>
+    <string name="log_error_value">The value does not fit the measure. Use 1 to %1$d for cycles, 1 to 100 for percent, 1 to 10 for scale and 1 for done. Use 0 for not done. A duration is minutes such as 30, or 1:30, or 45s, and at most 24 hours.</string>
     <string name="log_error_focus">The focus is not valid. It is a score from 1 to 10, and an entry marked not done has none.</string>
     <string name="log_error_periods">The archive periods are not valid.</string>
     <string name="log_error_number">A number in this row is not valid.</string>

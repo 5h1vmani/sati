@@ -9,7 +9,7 @@ import org.junit.Test
 class TodayTest {
     private val aum = Practice("p1", "AUM Chanting", Measure.Count, 108, 0, archived = false, position = 0)
     private val yoga = Practice("p2", "Hatha Yoga", Measure.Done, null, 0, archived = false, position = 1)
-    private val old = Practice("p3", "Old", Measure.Minutes, 10, 0, archived = true, position = 2)
+    private val old = Practice("p3", "Old", Measure.Duration, 10, 0, archived = true, position = 2)
     private val mood = Practice("p4", "Mood", Measure.Scale, null, 0, archived = false, position = 3, askFocus = false)
     private val energy = Practice("p5", "Energy", Measure.Percent, null, 0, archived = false, position = 4, askFocus = false)
     private val day = 500L
@@ -100,7 +100,6 @@ class TodayTest {
         assertEquals(7, row(mood, entry("a", mood, 7, null), entry("b", mood, 7, null), entry("c", mood, 8, null)).rating)
         assertEquals(8, row(mood, entry("a", mood, 8, null), entry("b", mood, 8, null), entry("c", mood, 7, null)).rating)
         assertEquals(73, row(energy, entry("a", energy, 72, null), entry("b", energy, 73, null)).rating)
-        assertEquals(0, row(energy, entry("a", energy, 0, null)).rating)
     }
 
     @Test fun averageRoundedHalfUpHandlesTheEdges() {
@@ -117,8 +116,11 @@ class TodayTest {
         assertNull(row(yoga, entry("a", yoga, 1, null)).rating)
     }
 
-    @Test fun anySingleEntryOfARatingPracticeIsDoneEvenAtZeroPercent() {
-        assertTrue(row(energy, entry("a", energy, 0, null)).done)
+    @Test fun aRatingPracticeWithOnlyANotDoneEntryIsNotDoneAndHasNoRating() {
+        val r = row(energy, entry("a", energy, 0, null))
+        assertTrue(r.notDone)
+        assertFalse(r.done)
+        assertNull(r.rating)
     }
 
     @Test fun theFocusAverageIsHiddenWhenThePracticeDoesNotAskForFocus() {
@@ -132,5 +134,70 @@ class TodayTest {
         assertEquals(108, row(aum).target)
         assertNull(row(yoga).target)
         assertNull(row(energy.copy(target = 5)).target)
+    }
+
+    private val every3 = Practice("p6", "Weekly-ish", Measure.Done, null, 0, archived = false, position = 5, everyDays = 3, scheduleStart = 498)
+    private val later = Practice("p7", "Later", Measure.Count, 10, 0, archived = false, position = 6, everyDays = 2, scheduleStart = 499)
+    private val soon = Practice("p8", "Soon", Measure.Duration, null, 0, archived = false, position = 7, scheduleStart = 505)
+
+    @Test fun duePracticesComeFirstInOrderAndTheOthersFollowInOrder() {
+        // On day 500: aum and yoga are due daily. later is due on 499 and 501, every3 on 498 and 501, and soon starts on 505.
+        val rows = Today.rows(listOf(later, aum, soon, every3, yoga), emptyList(), day)
+        assertEquals(listOf("p1", "p2", "p7", "p8", "p6"), rows.map { it.practice.id })
+        assertEquals(listOf(true, true, false, false, false), rows.map { it.due })
+    }
+
+    @Test fun duePracticesKeepTheOrderTheyWereGivenIn() {
+        val rows = Today.rows(listOf(yoga, aum), emptyList(), day)
+        assertEquals(listOf("p2", "p1"), rows.map { it.practice.id })
+    }
+
+    @Test fun aPracticeThatIsNotDueShowsItsNextDueDay() {
+        val rows = Today.rows(listOf(every3, later, soon), emptyList(), day)
+        assertEquals(listOf(false, false, false), rows.map { it.due })
+        assertEquals(mapOf("p6" to 501L, "p7" to 501L, "p8" to 505L), rows.associate { it.practice.id to it.nextDue })
+    }
+
+    @Test fun aDuePracticeHasItsOwnDayAsNextDue() {
+        assertEquals(day, row(aum).nextDue)
+        assertTrue(row(aum).due)
+    }
+
+    @Test fun anExtraEntryOnADayThatIsNotDueStillCountsAsDone() {
+        val r = row(every3, entry("a", every3, 1, null))
+        assertFalse(r.due)
+        assertTrue(r.done)
+    }
+
+    @Test fun aNotDoneEntryMakesAnyMeasureNotDone() {
+        listOf(aum, yoga, mood, energy, soon.copy(scheduleStart = 0)).forEach {
+            val r = row(it, entry("a", it, 0, null))
+            assertTrue("${it.measure}", r.logged)
+            assertFalse("${it.measure}", r.done)
+            assertTrue("${it.measure}", r.notDone)
+        }
+    }
+
+    @Test fun anEntryAboveZeroMakesAnyMeasureDone() {
+        listOf(aum, yoga, mood, energy).forEach {
+            val r = row(it, entry("a", it, 1, null))
+            assertTrue("${it.measure}", r.done)
+            assertFalse("${it.measure}", r.notDone)
+        }
+    }
+
+    @Test fun aNotDoneEntryCountsAsZeroInTheRatingAverage() {
+        assertEquals(4, row(mood, entry("a", mood, 8, null), entry("b", mood, 0, null)).rating)
+        assertEquals(50, row(energy, entry("a", energy, 100, null), entry("b", energy, 0, null)).rating)
+        assertEquals(1, row(energy, entry("a", energy, 1, null), entry("b", energy, 0, null)).rating)
+    }
+
+    @Test fun theLatestEntryIsTheNewestOfTheDay() {
+        val older = Entry("a", aum.id, day, 5, null, null, 100)
+        val newer = Entry("b", aum.id, day, 6, null, null, 200)
+        assertEquals("b", row(aum, older, newer).latest!!.id)
+        // The order of the list must not matter.
+        assertEquals("b", row(aum, newer, older).latest!!.id)
+        assertNull(row(aum).latest)
     }
 }

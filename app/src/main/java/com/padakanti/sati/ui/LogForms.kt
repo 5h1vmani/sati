@@ -65,6 +65,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -74,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.padakanti.sati.R
+import com.padakanti.sati.log.DurationText
 import com.padakanti.sati.log.Entry
 import com.padakanti.sati.log.EntryProblem
 import com.padakanti.sati.log.EntryRules
@@ -92,10 +94,13 @@ private const val MILLIS_PER_DAY = 86_400_000L
 /**
  * The short form for one entry, as a bottom sheet. The value is filled in.
  * When the practice asks for focus, a tap on a focus button saves, and "No
- * score" saves without one. Otherwise one Save button saves. A scale practice
- * picks its value in a row of ten buttons first. A done practice chooses Done
- * or Not done, and a not-done entry has no focus. [onSubmit] returns what is
- * wrong, or null when the entry was saved.
+ * score" saves without one. Otherwise one Save button saves, or a Done button
+ * for a done practice. A scale practice picks its value in a row of ten
+ * buttons first. A duration has a Minutes and a Seconds field. The outlined
+ * "Not done" button saves value 0 with no focus, for every measure. An entry
+ * that is not done opens like a new one, so it can become a real entry.
+ * When an entry is edited, "Add another entry" switches to a new one.
+ * [onSubmit] returns what is wrong, or null when the entry was saved.
  */
 @Composable
 internal fun EntrySheet(
@@ -103,6 +108,7 @@ internal fun EntrySheet(
     entry: Entry?,
     today: Long,
     onSubmit: suspend (day: Long, value: Int?, focus: Int?, note: String) -> EntryProblem?,
+    onAddAnother: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
@@ -111,43 +117,62 @@ internal fun EntrySheet(
     val measure = practice.measure
     val isDone = measure == Measure.Done
     val isScale = measure == Measure.Scale
-    var day by rememberSaveable { mutableLongStateOf(entry?.day ?: today) }
+    val isDuration = measure == Measure.Duration
+    // Every piece of state starts again when the sheet switches from an entry to a new one.
+    val key = entry?.id ?: ""
+    // The entry whose values fill the form. A not-done entry has none, so the form starts as for a new entry.
+    val real = entry?.takeIf { it.value != EntryRules.NOT_DONE_VALUE }
     // The target fills the value at once. Only a practice without a target waits for the last value.
-    var valueText by rememberSaveable { mutableStateOf(entry?.value?.toString() ?: practice.target?.toString() ?: "") }
-    var ready by rememberSaveable { mutableStateOf(entry != null || isDone || isScale || practice.target != null) }
-    // The chosen score of a scale practice, and the choice of a done practice. A new done entry is done.
-    var scaleValue by rememberSaveable { mutableStateOf(if (isScale) entry?.value else null) }
-    var doneChoice by rememberSaveable { mutableStateOf(entry?.value != EntryRules.NOT_DONE_VALUE) }
-    var note by rememberSaveable { mutableStateOf(entry?.note ?: "") }
-    var noteShown by rememberSaveable { mutableStateOf(!entry?.note.isNullOrEmpty()) }
-    var problem by remember { mutableStateOf<EntryProblem?>(null) }
+    val start = real?.value ?: practice.target
+    val startFields = when {
+        start == null -> "" to ""
+        isDuration -> DurationText.fieldsOf(start)
+        else -> start.toString() to ""
+    }
+    var day by rememberSaveable(key) { mutableLongStateOf(entry?.day ?: today) }
+    var valueText by rememberSaveable(key) { mutableStateOf(startFields.first) }
+    var secondsText by rememberSaveable(key) { mutableStateOf(startFields.second) }
+    var ready by rememberSaveable(key) { mutableStateOf(real != null || isDone || isScale || practice.target != null) }
+    // The chosen value of a scale practice.
+    var scaleValue by rememberSaveable(key) { mutableStateOf(if (isScale) real?.value else null) }
+    var note by rememberSaveable(key) { mutableStateOf(entry?.note ?: "") }
+    var noteShown by rememberSaveable(key) { mutableStateOf(!entry?.note.isNullOrEmpty()) }
+    var problem by remember(key) { mutableStateOf<EntryProblem?>(null) }
     var picking by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
 
     val asksFocus = practice.askFocus
-    // A not-done entry never has a focus.
-    val countsAsDone = !isDone || doneChoice
-    val showFocus = asksFocus && countsAsDone
     // With no focus row, an edit keeps the focus the entry already has.
-    val keptFocus = if (countsAsDone) entry?.focus else null
+    val keptFocus = real?.focus
     val value = when {
-        isDone -> if (doneChoice) EntryRules.DONE_VALUE else EntryRules.NOT_DONE_VALUE
+        isDone -> EntryRules.DONE_VALUE
         isScale -> scaleValue
+        isDuration -> DurationText.fromFields(valueText, secondsText)
         else -> valueText.toIntOrNull()
     }
     val canSave = ready && !saving && (!isScale || scaleValue != null)
 
     // The value starts as the target, else the last value, else empty. The save buttons wait for it.
-    LaunchedEffect(practice.id) {
+    LaunchedEffect(practice.id, key) {
         if (ready) return@LaunchedEffect
-        if (valueText.isEmpty()) {
-            valueText = Prefill.value(practice.target, LogController.lastValue(context, practice.id))?.toString() ?: ""
+        if (valueText.isEmpty() && secondsText.isEmpty()) {
+            val last = Prefill.value(practice.target, LogController.lastValue(context, practice.id))
+            if (last != null) {
+                val fields = if (isDuration) DurationText.fieldsOf(last) else last.toString() to ""
+                valueText = fields.first
+                secondsText = fields.second
+            }
         }
         ready = true
     }
 
-    fun save(focus: Int?, savedValue: Int? = value) {
+    fun save(focus: Int?, savedValue: Int? = value, notDone: Boolean = false) {
         if (saving || !ready) return
+        // A value of 0 can only come from the Not done button, so a typed 0 is not saved by mistake.
+        if (!notDone && savedValue == EntryRules.NOT_DONE_VALUE) {
+            problem = EntryProblem.BadValue
+            return
+        }
         saving = true
         // The write runs in the controller's scope, so leaving the screen does not stop it.
         LogController.scope.launch {
@@ -189,27 +214,33 @@ internal fun EntrySheet(
                 if (entry == null) stringResource(R.string.log_entry_new_title, practice.name) else stringResource(R.string.log_entry_edit_title),
                 style = MaterialTheme.typography.titleLarge,
             )
-            if (isDone) {
-                Column(Modifier.selectableGroup()) {
-                    ChoiceRow(stringResource(R.string.log_done), selected = doneChoice) { doneChoice = true }
-                    ChoiceRow(stringResource(R.string.log_not_done), selected = !doneChoice) { doneChoice = false }
-                }
+            if (entry != null) {
+                TextButton(onClick = onAddAnother) { Text(stringResource(R.string.log_add_another)) }
             }
-            if (!isDone && !isScale) {
+            if (isDuration) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = valueText,
+                        onValueChange = { v -> valueText = v.filter(Char::isDigit).take(4) },
+                        label = { Text(stringResource(R.string.log_value_minutes)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = secondsText,
+                        onValueChange = { v -> secondsText = v.filter(Char::isDigit).take(2) },
+                        label = { Text(stringResource(R.string.log_value_seconds)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            } else if (!isDone && !isScale) {
                 OutlinedTextField(
                     value = valueText,
                     onValueChange = { v -> valueText = v.filter(Char::isDigit).take(if (measure == Measure.Percent) 3 else 5) },
-                    label = {
-                        Text(
-                            stringResource(
-                                when (measure) {
-                                    Measure.Minutes -> R.string.log_value_minutes
-                                    Measure.Percent -> R.string.log_value_percent
-                                    else -> R.string.log_value_cycles
-                                },
-                            ),
-                        )
-                    },
+                    label = { Text(stringResource(if (measure == Measure.Percent) R.string.log_value_percent else R.string.log_value_cycles)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
@@ -222,12 +253,12 @@ internal fun EntrySheet(
                     enabled = ready && !saving,
                     descriptionRes = R.string.log_score_button,
                     // With a focus row below, the tap only selects. Without one, it saves.
-                    onPick = { n -> if (asksFocus) scaleValue = n else save(entry?.focus, savedValue = n) },
+                    onPick = { n -> if (asksFocus) scaleValue = n else save(keptFocus, savedValue = n) },
                 )
             }
-            if (showFocus) {
+            if (asksFocus) {
                 Text(stringResource(R.string.log_focus), style = MaterialTheme.typography.titleSmall)
-                FocusRow(selected = entry?.focus, enabled = canSave, descriptionRes = R.string.log_focus_button, onPick = { save(it) })
+                FocusRow(selected = real?.focus, enabled = canSave, descriptionRes = R.string.log_focus_button, onPick = { save(it) })
                 OutlinedButton(onClick = { save(null) }, enabled = canSave, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.log_no_score))
                 }
@@ -248,18 +279,25 @@ internal fun EntrySheet(
             } else {
                 TextButton(onClick = { noteShown = true }) { Text(stringResource(R.string.log_add_note)) }
             }
-            if (showFocus) {
+            if (asksFocus) {
                 // Editing: this keeps the old score, so a change of note or value does not wipe it.
-                if (entry != null) {
-                    Button(onClick = { save(entry.focus) }, enabled = canSave, modifier = Modifier.fillMaxWidth()) {
+                if (real != null) {
+                    Button(onClick = { save(real.focus) }, enabled = canSave, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.log_save_keep_focus))
                     }
                 }
             } else if (!(isScale && !asksFocus)) {
                 // A scale practice without a focus row has already saved on the tap of its value.
                 Button(onClick = { save(keptFocus) }, enabled = canSave, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.log_save))
+                    Text(stringResource(if (isDone) R.string.log_done else R.string.log_save))
                 }
+            }
+            OutlinedButton(
+                onClick = { save(null, savedValue = EntryRules.NOT_DONE_VALUE, notDone = true) },
+                enabled = ready && !saving,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.log_not_done))
             }
             problem?.let {
                 Text(entryProblemText(it, measure), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -326,15 +364,15 @@ private fun FocusRow(selected: Int?, enabled: Boolean, @StringRes descriptionRes
     }
 }
 
-/** A calendar that allows today and any past day, never a future day. */
+/** A calendar that allows today and any past day. It allows a future day only with [allowFuture]. */
 @Composable
-private fun DayPicker(day: Long, today: Long, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
+private fun DayPicker(day: Long, today: Long, onPick: (Long) -> Unit, onDismiss: () -> Unit, allowFuture: Boolean = false) {
     // The picker counts in UTC milliseconds at midnight, so a day number converts by plain multiplication.
     val state = rememberDatePickerState(
         initialSelectedDateMillis = day * MILLIS_PER_DAY,
         selectableDates = object : SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long) = Math.floorDiv(utcTimeMillis, MILLIS_PER_DAY) <= today
-            override fun isSelectableYear(year: Int) = year <= LogDay.date(today).year
+            override fun isSelectableDate(utcTimeMillis: Long) = allowFuture || Math.floorDiv(utcTimeMillis, MILLIS_PER_DAY) <= today
+            override fun isSelectableYear(year: Int) = allowFuture || year <= LogDay.date(today).year
         },
     )
     DatePickerDialog(
@@ -354,14 +392,21 @@ private fun measureOf(index: Int): Measure = Measure.entries[index]
 @Composable
 internal fun PracticeEditor(
     initial: Practice?,
-    onSave: suspend (name: String, measure: Measure, target: Int?, askFocus: Boolean) -> PracticeProblem?,
+    today: Long,
+    onSave: suspend (name: String, measure: Measure, target: Int?, askFocus: Boolean, everyDays: Int, scheduleStart: Long) -> PracticeProblem?,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
     val uiScope = rememberCoroutineScope()
     var name by rememberSaveable { mutableStateOf(initial?.name ?: "") }
-    var measureIndex by rememberSaveable { mutableIntStateOf((initial?.measure ?: Measure.Minutes).ordinal) }
-    var targetText by rememberSaveable { mutableStateOf(initial?.target?.toString() ?: "") }
+    var measureIndex by rememberSaveable { mutableIntStateOf((initial?.measure ?: Measure.Duration).ordinal) }
+    // A duration target has two fields, minutes and seconds. Other targets use the first one.
+    val startTarget = initial?.target?.let { if (initial.measure == Measure.Duration) DurationText.fieldsOf(it) else it.toString() to "" }
+    var targetText by rememberSaveable { mutableStateOf(startTarget?.first ?: "") }
+    var targetSecondsText by rememberSaveable { mutableStateOf(startTarget?.second ?: "") }
+    var everyDays by rememberSaveable { mutableIntStateOf(initial?.everyDays ?: 1) }
+    var scheduleStart by rememberSaveable { mutableLongStateOf(initial?.scheduleStart ?: today) }
+    var pickingStart by remember { mutableStateOf(false) }
     // The focus switch follows the measure's default until the user touches it.
     var askFocus by rememberSaveable { mutableStateOf(initial?.askFocus ?: PracticeRules.defaultAskFocus(measureOf(measureIndex))) }
     var focusTouched by rememberSaveable { mutableStateOf(false) }
@@ -377,9 +422,11 @@ internal fun PracticeEditor(
 
     fun save() {
         if (saving) return
-        val target = targetText.toIntOrNull()
+        val isDuration = measure == Measure.Duration
+        val target = if (isDuration) DurationText.fromFields(targetText, targetSecondsText) else targetText.toIntOrNull()
+        val typed = targetText.isNotEmpty() || (isDuration && targetSecondsText.isNotEmpty())
         // A target text that is not a number is a problem, not "no target".
-        if (targetText.isNotEmpty() && target == null) {
+        if (typed && target == null) {
             problem = PracticeProblem.TargetInvalid
             return
         }
@@ -389,7 +436,7 @@ internal fun PracticeEditor(
             var found: PracticeProblem? = null
             var finished = false
             try {
-                found = onSave(name, measure, target, askFocus)
+                found = onSave(name, measure, target, askFocus, everyDays, scheduleStart)
                 finished = true
             } finally {
                 uiScope.launch {
@@ -446,6 +493,11 @@ internal fun PracticeEditor(
                                 selected = measure == m,
                                 enabled = !hasEntries || m == initial?.measure,
                             ) {
+                                if (m != measure) {
+                                    // A target in seconds means nothing to another measure, so it starts again.
+                                    targetText = ""
+                                    targetSecondsText = ""
+                                }
                                 measureIndex = m.ordinal
                                 if (!focusTouched) askFocus = PracticeRules.defaultAskFocus(m)
                             }
@@ -459,7 +511,27 @@ internal fun PracticeEditor(
                         )
                     }
                 }
-                if (PracticeRules.hasTarget(measure)) {
+                if (measure == Measure.Duration) {
+                    Text(stringResource(R.string.log_target_label), style = MaterialTheme.typography.titleSmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = targetText,
+                            onValueChange = { v -> targetText = v.filter(Char::isDigit).take(4) },
+                            label = { Text(stringResource(R.string.log_value_minutes)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedTextField(
+                            value = targetSecondsText,
+                            onValueChange = { v -> targetSecondsText = v.filter(Char::isDigit).take(2) },
+                            label = { Text(stringResource(R.string.log_value_seconds)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                } else if (PracticeRules.hasTarget(measure)) {
                     OutlinedTextField(
                         value = targetText,
                         onValueChange = { v -> targetText = v.filter(Char::isDigit).take(5) },
@@ -467,6 +539,22 @@ internal fun PracticeEditor(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                RepeatControl(
+                    everyDays = everyDays,
+                    start = scheduleStart,
+                    today = today,
+                    onEveryDays = { everyDays = it },
+                    onChangeStart = { pickingStart = true },
+                )
+                if (pickingStart) {
+                    DayPicker(
+                        day = scheduleStart,
+                        today = today,
+                        onPick = { scheduleStart = it; pickingStart = false },
+                        onDismiss = { pickingStart = false },
+                        allowFuture = true,
                     )
                 }
                 Row(
@@ -479,9 +567,50 @@ internal fun PracticeEditor(
                     Text(stringResource(R.string.log_ask_focus), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     Switch(checked = askFocus, onCheckedChange = null)
                 }
-                problem?.let { Text(practiceProblemText(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+                problem?.let { Text(practiceProblemText(it, measure), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
             }
         }
+    }
+}
+
+/**
+ * How often a practice is due: every day, or every 2 to 7 days from a start day. The line under it says
+ * whether the practice is due today, or when it is next due.
+ */
+@Composable
+private fun RepeatControl(everyDays: Int, start: Long, today: Long, onEveryDays: (Int) -> Unit, onChangeStart: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.log_repeat), style = MaterialTheme.typography.titleMedium)
+        Column(Modifier.selectableGroup()) {
+            ChoiceRow(stringResource(R.string.log_every_day), selected = everyDays == 1) { onEveryDays(1) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    val shown = maxOf(everyDays, 2)
+                    ChoiceRow(pluralStringResource(R.plurals.log_every_n_days, shown, shown), selected = everyDays > 1) {
+                        if (everyDays == 1) onEveryDays(2)
+                    }
+                }
+                IconButton(onClick = { onEveryDays(everyDays - 1) }, enabled = everyDays > 2) {
+                    Icon(painterResource(R.drawable.lucide_minus), stringResource(R.string.log_fewer_days), Modifier.size(20.dp))
+                }
+                IconButton(onClick = { onEveryDays(everyDays + 1) }, enabled = everyDays in 2 until PracticeRules.MAX_EVERY_DAYS) {
+                    Icon(painterResource(R.drawable.lucide_plus), stringResource(R.string.log_more_days), Modifier.size(20.dp))
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.log_starts_on), style = MaterialTheme.typography.titleSmall)
+                Text(dayLabel(start, today), style = MaterialTheme.typography.bodyLarge)
+            }
+            TextButton(onClick = onChangeStart) { Text(stringResource(R.string.log_change_day)) }
+        }
+        Text(
+            if (PracticeRules.isDue(everyDays, start, today)) stringResource(R.string.log_due_today)
+            else stringResource(R.string.log_next_due, dayLabel(PracticeRules.nextDue(everyDays, start, today), today)),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

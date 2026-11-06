@@ -52,7 +52,7 @@ object LogController {
 
     fun entryTotal(context: Context): Flow<Int> = dao(context).entryTotal()
 
-    /** The value of the newest entry of a practice, for [Prefill]. */
+    /** The value of the newest entry of a practice that is not a not-done mark, for [Prefill]. */
     suspend fun lastValue(context: Context, practiceId: String): Int? = dao(context).lastEntryOf(practiceId)?.value
 
     /** How many entries a delete of the practice would remove. */
@@ -67,6 +67,8 @@ object LogController {
         measure: Measure,
         target: Int?,
         askFocus: Boolean,
+        everyDays: Int,
+        scheduleStart: Long,
         now: Long = System.currentTimeMillis(),
     ): PracticeProblem? {
         val db = LogDb.get(context)
@@ -74,7 +76,7 @@ object LogController {
             val dao = db.dao()
             val all = dao.allPractices()
             if (all.size >= PracticeRules.MAX_PRACTICES) return@inTransaction PracticeProblem.LimitReached
-            val problem = PracticeRules.problem(name, measure, target, all.map { it.name })
+            val problem = PracticeRules.problem(name, measure, target, all.map { it.name }, everyDays)
             if (problem != null) return@inTransaction problem
             dao.upsertPractice(
                 Practice(
@@ -86,6 +88,8 @@ object LogController {
                     archived = false,
                     position = dao.nextPosition(),
                     askFocus = askFocus,
+                    everyDays = everyDays,
+                    scheduleStart = scheduleStart,
                 ),
             )
             null
@@ -93,23 +97,48 @@ object LogController {
     }
 
     /**
-     * Changes a practice's name, target, measure or focus switch. The measure changes only
+     * Changes a practice's name, target, measure, focus switch or repeat schedule. The measure changes only
      * while the practice has no entries, because old entries would no longer
      * match it. Returns what is wrong, or null when it was saved.
      */
-    suspend fun editPractice(context: Context, id: String, name: String, measure: Measure, target: Int?, askFocus: Boolean): PracticeProblem? {
+    suspend fun editPractice(
+        context: Context,
+        id: String,
+        name: String,
+        measure: Measure,
+        target: Int?,
+        askFocus: Boolean,
+        everyDays: Int,
+        scheduleStart: Long,
+    ): PracticeProblem? {
         val db = LogDb.get(context)
         return db.inTransaction {
             val dao = db.dao()
             val old = dao.practiceById(id) ?: return@inTransaction PracticeProblem.NoPractice
             val others = dao.allPractices().filterNot { it.id == id }.map { it.name }
-            val problem = PracticeRules.problem(name, measure, target, others)
+            val problem = PracticeRules.problem(name, measure, target, others, everyDays)
             if (problem != null) return@inTransaction problem
             PracticeRules.measureProblem(old.measure, measure, dao.entryCount(id))?.let { return@inTransaction it }
             dao.upsertPractice(
-                old.copy(name = PracticeRules.clean(name), measure = measure, target = PracticeRules.targetFor(measure, target), askFocus = askFocus),
+                old.copy(
+                    name = PracticeRules.clean(name),
+                    measure = measure,
+                    target = PracticeRules.targetFor(measure, target),
+                    askFocus = askFocus,
+                    everyDays = everyDays,
+                    scheduleStart = scheduleStart,
+                ),
             )
             null
+        }
+    }
+
+    /** Moves a practice one place up or down. Today follows the order. The change is one transaction. */
+    suspend fun movePractice(context: Context, id: String, up: Boolean) {
+        val db = LogDb.get(context)
+        db.inTransaction {
+            val dao = db.dao()
+            PracticeRules.moved(dao.allPractices(), id, up).forEach { dao.upsertPractice(it) }
         }
     }
 
@@ -142,8 +171,8 @@ object LogController {
 
     /**
      * Adds an entry on [day], which is today unless the user chose a past day.
-     * [value] must fit the measure: for a done practice it is 1 for done or 0
-     * for not done, and a not-done entry has no focus.
+     * [value] must fit the measure. 0 means not done, for every measure, and a
+     * not-done entry has no focus.
      */
     suspend fun addEntry(
         context: Context,
@@ -170,8 +199,8 @@ object LogController {
     suspend fun logDone(context: Context, practiceId: String, now: Long = System.currentTimeMillis()): Entry? =
         logOnce(context, practiceId, EntryRules.DONE_VALUE, now)
 
-    /** Like [logDone], but marks the practice as not done today. Adds nothing when it already has an entry today. */
-    suspend fun logNotDone(context: Context, practiceId: String, now: Long = System.currentTimeMillis()): Entry? =
+    /** Like [logDone], but marks any practice as not done today, with value 0. Adds nothing when it already has an entry today. */
+    suspend fun markNotDone(context: Context, practiceId: String, now: Long = System.currentTimeMillis()): Entry? =
         logOnce(context, practiceId, EntryRules.NOT_DONE_VALUE, now)
 
     private suspend fun logOnce(context: Context, practiceId: String, value: Int, now: Long): Entry? {

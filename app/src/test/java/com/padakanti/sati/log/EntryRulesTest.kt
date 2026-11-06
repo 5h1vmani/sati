@@ -33,7 +33,7 @@ class EntryRulesTest {
 
     @Test fun prefillIsEmptyWithNeither() = assertNull(Prefill.value(null, null))
 
-    private fun problem(measure: Measure = Measure.Minutes, value: Int? = 20, focus: Int? = 7, note: String? = null, day: Long = 100, today: Long = 100) =
+    private fun problem(measure: Measure = Measure.Duration, value: Int? = 20, focus: Int? = 7, note: String? = null, day: Long = 100, today: Long = 100) =
         EntryRules.problem(measure, value, focus, note, day, today)
 
     @Test fun aGoodEntryHasNoProblem() = assertNull(problem())
@@ -44,10 +44,11 @@ class EntryRulesTest {
 
     @Test fun futureDaysAreRefused() = assertEquals(EntryProblem.FutureDay, problem(day = 101))
 
-    @Test fun minutesNeedAValueFromOneUp() {
+    @Test fun aDurationIsCountedInSecondsUpToOneDay() {
         assertEquals(EntryProblem.BadValue, problem(value = null))
-        assertEquals(EntryProblem.BadValue, problem(value = 0))
-        assertEquals(EntryProblem.BadValue, problem(value = EntryRules.MAX_VALUE + 1))
+        assertNull(problem(value = EntryRules.MAX_SECONDS))
+        assertEquals(EntryProblem.BadValue, problem(value = EntryRules.MAX_SECONDS + 1))
+        assertEquals(86_400, EntryRules.MAX_SECONDS)
     }
 
     @Test fun doneHasValueZeroOrOne() {
@@ -71,20 +72,26 @@ class EntryRulesTest {
         assertEquals(EntryProblem.BadValue, problem(measure = Measure.Percent, value = null, focus = null))
     }
 
-    @Test fun scaleIsOneToTen() {
+    @Test fun scaleIsOneToTenAndZeroMeansNotDone() {
+        assertNull(problem(measure = Measure.Scale, value = 0, focus = null))
         assertNull(problem(measure = Measure.Scale, value = 1, focus = null))
         assertNull(problem(measure = Measure.Scale, value = 10, focus = null))
-        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Scale, value = 0, focus = null))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Scale, value = -1, focus = null))
         assertEquals(EntryProblem.BadValue, problem(measure = Measure.Scale, value = 11, focus = null))
         assertEquals(EntryProblem.BadValue, problem(measure = Measure.Scale, value = null, focus = null))
     }
 
-    @Test fun minutesAndCountAreOneToTheMaximum() {
-        listOf(Measure.Minutes, Measure.Count).forEach {
-            assertNull(problem(measure = it, value = 1))
-            assertNull(problem(measure = it, value = EntryRules.MAX_VALUE))
-            assertEquals(EntryProblem.BadValue, problem(measure = it, value = 0))
-            assertEquals(EntryProblem.BadValue, problem(measure = it, value = EntryRules.MAX_VALUE + 1))
+    @Test fun countIsOneToTheMaximum() {
+        assertNull(problem(measure = Measure.Count, value = 1))
+        assertNull(problem(measure = Measure.Count, value = EntryRules.MAX_VALUE))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Count, value = EntryRules.MAX_VALUE + 1))
+        assertEquals(EntryProblem.BadValue, problem(measure = Measure.Count, value = -1))
+    }
+
+    @Test fun valueZeroIsNotDoneForAllFiveMeasuresAndNeedsNoFocus() {
+        Measure.entries.forEach {
+            assertNull("$it", problem(measure = it, value = 0, focus = null))
+            assertEquals("$it", EntryProblem.BadFocus, problem(measure = it, value = 0, focus = 5))
         }
     }
 
@@ -100,14 +107,15 @@ class EntryRulesTest {
     @Test fun theRangesAreTheNamedConstants() {
         assertEquals(0..1, EntryRules.valueRange(Measure.Done))
         assertEquals(0..100, EntryRules.valueRange(Measure.Percent))
-        assertEquals(1..10, EntryRules.valueRange(Measure.Scale))
-        assertEquals(1..99_999, EntryRules.valueRange(Measure.Count))
+        assertEquals(0..10, EntryRules.valueRange(Measure.Scale))
+        assertEquals(0..99_999, EntryRules.valueRange(Measure.Count))
+        assertEquals(0..86_400, EntryRules.valueRange(Measure.Duration))
         assertEquals(0, EntryRules.NOT_DONE_VALUE)
         assertEquals(1, EntryRules.DONE_VALUE)
     }
 
     @Test fun theFocusSwitchStartsOnlyForMinutesAndCount() {
-        assertEquals(true, PracticeRules.defaultAskFocus(Measure.Minutes))
+        assertEquals(true, PracticeRules.defaultAskFocus(Measure.Duration))
         assertEquals(true, PracticeRules.defaultAskFocus(Measure.Count))
         assertEquals(false, PracticeRules.defaultAskFocus(Measure.Done))
         assertEquals(false, PracticeRules.defaultAskFocus(Measure.Percent))
@@ -115,7 +123,7 @@ class EntryRulesTest {
     }
 
     @Test fun onlyMinutesAndCountHaveATarget() {
-        assertEquals(30, PracticeRules.targetFor(Measure.Minutes, 30))
+        assertEquals(30, PracticeRules.targetFor(Measure.Duration, 30))
         assertEquals(108, PracticeRules.targetFor(Measure.Count, 108))
         assertNull(PracticeRules.targetFor(Measure.Done, 5))
         assertNull(PracticeRules.targetFor(Measure.Percent, 5))
@@ -139,8 +147,8 @@ class EntryRulesTest {
     @Test fun practiceNeedsAName() = assertEquals(PracticeProblem.NameBlank, PracticeRules.problem("  ", Measure.Done, null, emptyList()))
 
     @Test fun targetMustBePositive() {
-        assertEquals(PracticeProblem.TargetInvalid, PracticeRules.problem("A", Measure.Minutes, 0, emptyList()))
-        assertNull(PracticeRules.problem("A", Measure.Minutes, null, emptyList()))
+        assertEquals(PracticeProblem.TargetInvalid, PracticeRules.problem("A", Measure.Duration, 0, emptyList()))
+        assertNull(PracticeRules.problem("A", Measure.Duration, null, emptyList()))
     }
 
     @Test fun doneHasNoTarget() {

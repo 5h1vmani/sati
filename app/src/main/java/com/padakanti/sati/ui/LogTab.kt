@@ -145,7 +145,10 @@ internal fun LogTab(
     fun deleteEntry(entry: Entry) {
         LogController.scope.launch {
             LogController.deleteEntry(context, entry.id)
-            showUndo(context.getString(R.string.log_entry_deleted)) { LogController.undoDelete(context, entry) }
+            showUndo(context.getString(R.string.log_entry_deleted)) {
+                // The practice may have been deleted, or its measure changed, while Undo was on screen.
+                if (!LogController.undoDelete(context, entry)) snackbar.showSnackbar(context.getString(R.string.log_undo_failed))
+            }
         }
     }
 
@@ -172,6 +175,7 @@ internal fun LogTab(
             onOpen = { openPractice(it.id, PRACTICES) },
             onAdd = { editor = "" },
             onEdit = { editor = it.id },
+            onMove = { p, up -> LogController.scope.launch { LogController.movePractice(context, p.id, up) } },
             onArchive = { p, archived -> LogController.scope.launch { LogController.setArchived(context, p.id, archived) } },
             onDelete = { deleting = it },
         )
@@ -181,13 +185,13 @@ internal fun LogTab(
             today = today,
             practices = practices,
             actions = actions,
-            // Every row except a done one opens the form. A done row opens it when the practice asks for focus.
-            // Otherwise it logs with one tap, or opens its entries once it is logged, as done or not done.
+            // A logged row opens today's newest entry to edit. An unlogged row opens the form, except a done
+            // practice that does not ask for focus, which logs with one tap.
             onTap = { row ->
                 val p = row.practice
                 when {
+                    row.latest != null -> form = FormTarget(p.id, row.latest)
                     p.measure != Measure.Done -> form = FormTarget(p.id, null)
-                    row.logged -> openPractice(p.id, TODAY)
                     p.askFocus -> form = FormTarget(p.id, null)
                     else -> LogController.scope.launch {
                         val entry = LogController.logDone(context, p.id) ?: return@launch
@@ -198,7 +202,7 @@ internal fun LogTab(
             onNotDone = { row ->
                 val p = row.practice
                 LogController.scope.launch {
-                    val entry = LogController.logNotDone(context, p.id) ?: return@launch
+                    val entry = LogController.markNotDone(context, p.id) ?: return@launch
                     showUndo(context.getString(R.string.log_marked_not_done, p.name)) { LogController.deleteEntry(context, entry.id) }
                 }
             },
@@ -222,6 +226,7 @@ internal fun LogTab(
                     if (entry == null) LogController.addEntry(context, practice.id, day, value, focus, note).problem
                     else LogController.editEntry(context, entry, day, value, focus, note)
                 },
+                onAddAnother = { form = FormTarget(practice.id, null) },
                 onDismiss = { form = null },
             )
         }
@@ -234,9 +239,10 @@ internal fun LogTab(
         } else {
             PracticeEditor(
                 initial = initial,
-                onSave = { name, measure, target, askFocus ->
-                    if (initial == null) LogController.addPractice(context, name, measure, target, askFocus)
-                    else LogController.editPractice(context, initial.id, name, measure, target, askFocus)
+                today = today,
+                onSave = { name, measure, target, askFocus, everyDays, scheduleStart ->
+                    if (initial == null) LogController.addPractice(context, name, measure, target, askFocus, everyDays, scheduleStart)
+                    else LogController.editPractice(context, initial.id, name, measure, target, askFocus, everyDays, scheduleStart)
                 },
                 onDismiss = { editor = null },
             )
@@ -303,7 +309,17 @@ private fun TodayView(
         else -> {
             val rows = Today.rows(practices, entries, today)
             if (rows.isEmpty()) Notice(R.drawable.lucide_archive, stringResource(R.string.log_all_archived))
-            rows.forEach { TodayCard(it, onClick = { onTap(it) }, onNotDone = { onNotDone(it) }, onEntries = { onEntries(it.practice) }) }
+            // Due practices come first. The others wait below a heading, and can still be logged.
+            val (due, later) = rows.partition { it.due }
+            due.forEach { TodayCard(it, today, onClick = { onTap(it) }, onNotDone = { onNotDone(it) }, onEntries = { onEntries(it.practice) }) }
+            if (later.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.log_not_due_heading),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                )
+                later.forEach { TodayCard(it, today, onClick = { onTap(it) }, onNotDone = { onNotDone(it) }, onEntries = { onEntries(it.practice) }) }
+            }
             OutlinedButton(onClick = onManage, modifier = Modifier.fillMaxWidth()) {
                 Icon(painterResource(R.drawable.lucide_list_checks), null, Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
@@ -316,7 +332,7 @@ private fun TodayView(
 }
 
 @Composable
-private fun TodayCard(row: TodayRow, onClick: () -> Unit, onNotDone: () -> Unit, onEntries: () -> Unit) {
+private fun TodayCard(row: TodayRow, today: Long, onClick: () -> Unit, onNotDone: () -> Unit, onEntries: () -> Unit) {
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -350,6 +366,13 @@ private fun TodayCard(row: TodayRow, onClick: () -> Unit, onNotDone: () -> Unit,
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(row.practice.name, style = MaterialTheme.typography.titleMedium)
                 Text(progressText(row), style = MaterialTheme.typography.bodyMedium)
+                if (!row.due) {
+                    Text(
+                        stringResource(R.string.log_next_due, dayLabel(row.nextDue, today)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 val target = row.target
                 if (target != null) {
                     LinearProgressIndicator(
@@ -365,8 +388,8 @@ private fun TodayCard(row: TodayRow, onClick: () -> Unit, onNotDone: () -> Unit,
                     )
                 }
             }
-            // A done practice with nothing logged has a button to mark it not done in one tap.
-            if (row.practice.measure == Measure.Done && !row.logged) {
+            // A practice that is due and has nothing logged has a button to mark it not done in one tap.
+            if (row.due && !row.logged) {
                 IconButton(onClick = onNotDone) {
                     Icon(
                         painterResource(R.drawable.lucide_circle_x),
@@ -571,6 +594,7 @@ private fun PracticesView(
     onOpen: (Practice) -> Unit,
     onAdd: () -> Unit,
     onEdit: (Practice) -> Unit,
+    onMove: (Practice, Boolean) -> Unit,
     onArchive: (Practice, Boolean) -> Unit,
     onDelete: (Practice) -> Unit,
 ) {
@@ -593,42 +617,49 @@ private fun PracticesView(
     if (practices.isEmpty()) {
         Text(stringResource(R.string.log_no_practices), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(4.dp))
     }
-    practices.forEach { p ->
+    practices.forEachIndexed { index, p ->
         Card(
             onClick = { onOpen(p) },
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
         ) {
-            Row(Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(p.name, style = MaterialTheme.typography.titleMedium)
-                    val target = p.target
-                    val line = if (target != null && PracticeRules.hasTarget(p.measure)) {
-                        stringResource(R.string.log_measure_line_target, measureName(p.measure), amountText(p.measure, target))
-                    } else {
-                        measureName(p.measure)
-                    }
-                    Text(line, style = MaterialTheme.typography.bodyMedium)
-                    if (p.archived) {
-                        Text(
-                            stringResource(R.string.log_archived),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            // The text has the full width, and the five buttons sit in their own row, so a large font does not squeeze either.
+            Column(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp, end = 4.dp)) {
+                Text(p.name, style = MaterialTheme.typography.titleMedium)
+                val target = p.target
+                val line = if (target != null && PracticeRules.hasTarget(p.measure)) {
+                    stringResource(R.string.log_measure_line_target, measureName(p.measure), amountText(p.measure, target))
+                } else {
+                    measureName(p.measure)
                 }
-                IconButton(onClick = { onEdit(p) }) {
-                    Icon(painterResource(R.drawable.lucide_pencil), stringResource(R.string.log_edit_practice, p.name), Modifier.size(20.dp))
-                }
-                IconButton(onClick = { onArchive(p, !p.archived) }) {
-                    Icon(
-                        painterResource(if (p.archived) R.drawable.lucide_archive_restore else R.drawable.lucide_archive),
-                        stringResource(if (p.archived) R.string.log_return_practice else R.string.log_archive_practice, p.name),
-                        Modifier.size(20.dp),
+                Text(line, style = MaterialTheme.typography.bodyMedium)
+                if (p.archived) {
+                    Text(
+                        stringResource(R.string.log_archived),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                IconButton(onClick = { onDelete(p) }) {
-                    Icon(painterResource(R.drawable.lucide_trash_2), stringResource(R.string.log_delete_practice, p.name), Modifier.size(20.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    IconButton(onClick = { onMove(p, true) }, enabled = index > 0) {
+                        Icon(painterResource(R.drawable.lucide_arrow_up), stringResource(R.string.log_move_up, p.name), Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = { onMove(p, false) }, enabled = index < practices.lastIndex) {
+                        Icon(painterResource(R.drawable.lucide_arrow_down), stringResource(R.string.log_move_down, p.name), Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = { onEdit(p) }) {
+                        Icon(painterResource(R.drawable.lucide_pencil), stringResource(R.string.log_edit_practice, p.name), Modifier.size(20.dp))
+                    }
+                    IconButton(onClick = { onArchive(p, !p.archived) }) {
+                        Icon(
+                            painterResource(if (p.archived) R.drawable.lucide_archive_restore else R.drawable.lucide_archive),
+                            stringResource(if (p.archived) R.string.log_return_practice else R.string.log_archive_practice, p.name),
+                            Modifier.size(20.dp),
+                        )
+                    }
+                    IconButton(onClick = { onDelete(p) }) {
+                        Icon(painterResource(R.drawable.lucide_trash_2), stringResource(R.string.log_delete_practice, p.name), Modifier.size(20.dp))
+                    }
                 }
             }
         }

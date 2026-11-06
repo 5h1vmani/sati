@@ -3,7 +3,9 @@ package com.padakanti.sati.log
 import com.padakanti.sati.TextRules
 
 /** What is wrong with a practice. The screen turns each one into a sentence. */
-enum class PracticeProblem { NameBlank, NameHidden, LimitReached, NameTooLong, NameTaken, TargetInvalid, MeasureLocked, NoPractice }
+enum class PracticeProblem {
+    NameBlank, NameHidden, LimitReached, NameTooLong, NameTaken, TargetInvalid, MeasureLocked, NoPractice, ScheduleInvalid,
+}
 
 object PracticeRules {
     const val MAX_NAME = 60
@@ -21,22 +23,60 @@ object PracticeRules {
     fun measureProblem(old: Measure, new: Measure, entryCount: Int): PracticeProblem? =
         if (new != old && entryCount > 0) PracticeProblem.MeasureLocked else null
 
-    /** Only minutes and cycles have a target. */
-    fun hasTarget(measure: Measure): Boolean = measure == Measure.Minutes || measure == Measure.Count
+    /** A practice repeats every 1 to 7 days. */
+    const val MIN_EVERY_DAYS = 1
+    const val MAX_EVERY_DAYS = 7
 
-    /** The focus switch of a new practice: on for minutes and cycles, off for the others. */
-    fun defaultAskFocus(measure: Measure): Boolean = measure == Measure.Minutes || measure == Measure.Count
+    /** Only durations and cycles have a target. */
+    fun hasTarget(measure: Measure): Boolean = measure == Measure.Duration || measure == Measure.Count
+
+    /** The focus switch of a new practice: on for durations and cycles, off for the others. */
+    fun defaultAskFocus(measure: Measure): Boolean = measure == Measure.Duration || measure == Measure.Count
 
     /** A done, percent or scale practice has no target. */
     fun targetFor(measure: Measure, target: Int?): Int? = if (hasTarget(measure)) target else null
 
+    /**
+     * True when a practice that repeats every [everyDays] days from [start] is due on [day].
+     * It is never due before [start]. A due day that is missed does not move the schedule.
+     */
+    fun isDue(everyDays: Int, start: Long, day: Long): Boolean = day >= start && (day - start) % everyDays == 0L
+
+    /** The first due day on or after [from]. It is [from] itself when that day is due. */
+    fun nextDue(everyDays: Int, start: Long, from: Long): Long =
+        if (from <= start) start else start + Math.floorDiv(from - start + everyDays - 1, everyDays.toLong()) * everyDays
+
+    fun isDue(practice: Practice, day: Long): Boolean = isDue(practice.everyDays, practice.scheduleStart, day)
+
+    fun nextDue(practice: Practice, from: Long): Long = nextDue(practice.everyDays, practice.scheduleStart, from)
+
+    /**
+     * Moves the practice with [id] one place up or down in [ordered], which is in position order.
+     * Returns the practices whose position changed, with the new positions, or an empty list when
+     * the practice is at the end it would move past. Positions become 0, 1, 2 and so on, so
+     * gaps or equal positions from earlier edits cannot stop a move.
+     */
+    fun moved(ordered: List<Practice>, id: String, up: Boolean): List<Practice> {
+        val from = ordered.indexOfFirst { it.id == id }
+        val to = if (up) from - 1 else from + 1
+        if (from < 0 || to !in ordered.indices) return emptyList()
+        val order = ordered.toMutableList()
+        order[from] = ordered[to]
+        order[to] = ordered[from]
+        return order.mapIndexedNotNull { i, p -> if (p.position != i) p.copy(position = i) else null }
+    }
+
+    /** The largest target a practice measured as [measure] may have. */
+    fun maxTarget(measure: Measure): Int = if (measure == Measure.Duration) EntryRules.MAX_SECONDS else EntryRules.MAX_VALUE
+
     /** The first problem with a practice, or null when it can be saved. [otherNames] are the other practices' names. */
-    fun problem(name: String, measure: Measure, target: Int?, otherNames: List<String>): PracticeProblem? = when {
+    fun problem(name: String, measure: Measure, target: Int?, otherNames: List<String>, everyDays: Int = 1): PracticeProblem? = when {
         name.isBlank() -> PracticeProblem.NameBlank
         TextRules.hasHidden(name.trim()) -> PracticeProblem.NameHidden
         clean(name).length > MAX_NAME -> PracticeProblem.NameTooLong
         otherNames.any { sameName(it, name) } -> PracticeProblem.NameTaken
-        targetFor(measure, target)?.let { it !in 1..EntryRules.MAX_VALUE } == true -> PracticeProblem.TargetInvalid
+        everyDays !in MIN_EVERY_DAYS..MAX_EVERY_DAYS -> PracticeProblem.ScheduleInvalid
+        targetFor(measure, target)?.let { it !in 1..maxTarget(measure) } == true -> PracticeProblem.TargetInvalid
         else -> null
     }
 }

@@ -128,7 +128,7 @@ class LogImportTest {
     }
 
     @Test fun knownNamesMatchWithCaseIgnoredAndAskNothing() {
-        val yoga = Practice("p1", "Hatha Yoga", Measure.Minutes, 30, 0, false, 0)
+        val yoga = Practice("p1", "Hatha Yoga", Measure.Duration, 30, 0, false, 0)
         val c = merge(handMade("2026-11-01,  hatha YOGA ,45,\n"), LogState(listOf(yoga), emptyList()))
         assertEquals(emptyList<String>(), c.unknownNames)
         assertEquals(emptyList<Practice>(), c.practices)
@@ -136,13 +136,13 @@ class LogImportTest {
     }
 
     @Test fun newPracticesGoAfterTheExistingOnes() {
-        val yoga = Practice("p1", "Hatha Yoga", Measure.Minutes, 30, 0, false, 4)
+        val yoga = Practice("p1", "Hatha Yoga", Measure.Duration, 30, 0, false, 4)
         val c = merge(handMade("2026-11-01,Kriya,10,\n"), LogState(listOf(yoga), emptyList()))
         assertEquals(5, c.practices.single().position)
     }
 
     @Test fun anIdLessRowThatMatchesPracticeDayAndValueIsSkipped() {
-        val yoga = Practice("p1", "Hatha Yoga", Measure.Minutes, null, 0, false, 0)
+        val yoga = Practice("p1", "Hatha Yoga", Measure.Count, null, 0, false, 0)
         val existing = Entry("e1", "p1", day("2026-11-01"), 45, 7, null, 0)
         val file = handMade("2026-11-01,Hatha Yoga,45,\n2026-11-01,Hatha Yoga,30,\n2026-11-02,Hatha Yoga,45,\n")
         val c = merge(file, LogState(listOf(yoga), listOf(existing)))
@@ -152,7 +152,7 @@ class LogImportTest {
 
     @Test fun twoIdenticalRowsInOneFileAreBothAddedOnce() {
         val file = handMade("2026-11-01,Walk,20,\n2026-11-01,Walk,20,\n")
-        val first = merge(file, empty, mapOf("Walk" to Measure.Minutes))
+        val first = merge(file, empty, mapOf("Walk" to Measure.Duration))
         assertEquals(2, first.entries.size)
         val second = merge(file, apply(empty, first))
         assertEquals(0, second.entries.size)
@@ -161,7 +161,7 @@ class LogImportTest {
 
     @Test fun importingTheSameHandMadeFileTwiceChangesNothing() {
         val file = handMade("2026-11-01,Hatha Yoga,45,85\n2026-11-02,Kriya,108,\n2026-11-02,Kriya,20,40\n")
-        val first = merge(file, empty, mapOf("Hatha Yoga" to Measure.Minutes, "Kriya" to Measure.Count))
+        val first = merge(file, empty, mapOf("Hatha Yoga" to Measure.Duration, "Kriya" to Measure.Count))
         val after = apply(empty, first)
         val second = merge(file, after)
         assertEquals(emptyList<Practice>(), second.practices)
@@ -250,7 +250,7 @@ class LogImportTest {
     }
 
     @Test fun aSameNamePracticeWithAnotherMeasureIsAnError() {
-        val mine = Practice("mine", "Hatha Yoga", Measure.Minutes, null, 0, false, 0)
+        val mine = Practice("mine", "Hatha Yoga", Measure.Duration, null, 0, false, 0)
         val result = LogImport.merge(zipFile(), LogState(listOf(mine), emptyList()), emptyMap(), now, ::newId)
         assertEquals(ImportError(ImportErrorKind.MeasureConflict, "practices.csv", 2), (result as Parsed.Failed).error)
     }
@@ -263,7 +263,7 @@ class LogImportTest {
     }
 
     @Test fun aPracticeWithAnExistingIdAndAnotherMeasureIsAnError() {
-        val mine = yoga.copy(measure = Measure.Minutes)
+        val mine = yoga.copy(measure = Measure.Duration)
         val result = LogImport.merge(zipFile(), LogState(listOf(mine), emptyList()), emptyMap(), now, ::newId)
         assertEquals(ImportError(ImportErrorKind.MeasureConflict, "practices.csv", 2), (result as Parsed.Failed).error)
     }
@@ -478,7 +478,7 @@ class LogImportTest {
 
     @Test fun formulaLookingTextRoundTripsExactly() {
         val names = listOf("=1+1", "+x", "-x", "@x", "'quoted", "''two", "plain")
-        val practices = names.mapIndexed { i, n -> Practice("p$i", n, Measure.Minutes, null, day("2026-10-01"), false, i) }
+        val practices = names.mapIndexed { i, n -> Practice("p$i", n, Measure.Duration, null, day("2026-10-01"), false, i) }
         val notes = listOf("=x", "'starts with apostrophe", "''", "'", "@", "-", "ordinary", "line one\nline two", "=first\nsecond")
         val es = notes.mapIndexed { i, n -> Entry("e$i", "p${i % names.size}", day("2026-11-01"), 5, null, n, i.toLong()) }
         val z = ZipContents(LogExport.practicesCsv(practices, emptyList()), LogExport.entriesCsv(es, practices), null)
@@ -509,7 +509,7 @@ class LogImportTest {
     }
 
     @Test fun namesAreNormalizedAndMatchAcrossSpellings() {
-        val composed = Practice("p1", "Caf\u00E9", Measure.Minutes, null, 0, false, 0)
+        val composed = Practice("p1", "Caf\u00E9", Measure.Duration, null, 0, false, 0)
         val c = merge(handMade("2026-11-01,Cafe\u0301,5,\n"), LogState(listOf(composed), emptyList()))
         assertEquals(emptyList<String>(), c.unknownNames)
         assertEquals("p1", c.entries.single().practiceId)
@@ -532,12 +532,15 @@ class LogImportTest {
         assertEquals(Measure.Percent, c.practices.single().measure)
     }
 
-    @Test fun aHandMadeValueOfZeroPassesParsingAndFailsOnlyForMeasuresThatForbidIt() {
+    @Test fun aHandMadeValueOfZeroIsNotDoneForEveryMeasure() {
         assertEquals(0, handMade("2026-11-01,X,0,\n").entries.single().value)
-        assertEquals(0, merge(handMade("2026-11-01,X,0,\n"), empty, mapOf("X" to Measure.Percent)).entries.single().value)
-        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,0,\n", Measure.Minutes))
-        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,0,\n", Measure.Count))
-        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,0,\n", Measure.Scale))
+        Measure.entries.forEach {
+            assertEquals("$it", 0, merge(handMade("2026-11-01,X,0,\n"), empty, mapOf("X" to it)).entries.single().value)
+        }
+    }
+
+    @Test fun aNegativeHandMadeValueIsBadValue() {
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), handMadeError("2026-11-01,X,-1,\n"))
     }
 
     @Test fun aHandMadeDonePracticeReadsZeroAsNotDoneAndOneOrMoreAsDone() {
@@ -547,7 +550,6 @@ class LogImportTest {
 
     @Test fun aScaleValueOutOfRangeStopsTheImportWithItsLine() {
         assertEquals(ImportError(ImportErrorKind.BadValue, "", 2), mergeError("2026-11-01,X,5,\n2026-11-02,X,11,\n", Measure.Scale))
-        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,0,\n", Measure.Scale))
         assertEquals(10, merge(handMade("2026-11-01,X,10,\n"), empty, mapOf("X" to Measure.Scale)).entries.single().value)
     }
 
@@ -574,22 +576,23 @@ class LogImportTest {
     }
 
     @Test fun beforeTheUserChoosesAMeasureTheValuesAreNotCheckedAgainstAGuess() {
-        // Value 0 is wrong for the guessed Minutes, but right for Percent. The check waits for the choice.
-        val first = LogImport.merge(handMade("2026-11-01,X,0,\n"), empty, emptyMap(), now, ::newId)
+        // 101 is fine as minutes of a guessed Duration, but wrong for Percent. The check waits for the choice.
+        val first = LogImport.merge(handMade("2026-11-01,X,101,\n"), empty, emptyMap(), now, ::newId)
         assertEquals(listOf("X"), (first as Parsed.Ok).value.unknownNames)
-        val chosen = LogImport.merge(handMade("2026-11-01,X,0,\n"), empty, mapOf("X" to Measure.Minutes), now, ::newId)
+        val chosen = LogImport.merge(handMade("2026-11-01,X,101,\n"), empty, mapOf("X" to Measure.Percent), now, ::newId)
         assertEquals(ImportErrorKind.BadValue, (chosen as Parsed.Failed).error.kind)
     }
 
     @Test fun theFinalRunChecksAPracticeThatIsStillAGuess() {
         // A name nobody chose a measure for, for example because its practice was deleted meanwhile.
-        val result = LogImport.merge(handMade("2026-11-01,X,0,\n"), empty, emptyMap(), now, ::newId, final = true)
+        // 90000 minutes is more than a day, so it is wrong for the guessed Duration.
+        val result = LogImport.merge(handMade("2026-11-01,X,90000,\n"), empty, emptyMap(), now, ::newId, final = true)
         assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), (result as Parsed.Failed).error)
     }
 
     @Test fun aPercentSignIsAllowedOnlyForAPercentPractice() {
-        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,30%,\n", Measure.Minutes))
-        assertEquals(30, merge(handMade("2026-11-01,X,30,\n"), empty, mapOf("X" to Measure.Minutes)).entries.single().value)
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,30%,\n", Measure.Duration))
+        assertEquals(1800, merge(handMade("2026-11-01,X,30,\n"), empty, mapOf("X" to Measure.Duration)).entries.single().value)
     }
 
     @Test fun aKnownPracticeIsCheckedAgainstItsOwnMeasureAtOnce() {
@@ -620,11 +623,11 @@ class LogImportTest {
         assertEquals(ImportError(ImportErrorKind.BadFocus, "entries.csv", 4), (result as Parsed.Failed).error)
     }
 
-    @Test fun aZipRowOfACountPracticeWithValueZeroIsBadValue() {
+    @Test fun aZipNotDoneRowOfACountPracticeWithAFocusIsBadFocus() {
         val bad = entries[0].copy(value = 0)
         val z = zip(entriesCsv = LogExport.entriesCsv(listOf(bad, entries[1]), listOf(yoga, aum)))
         val result = LogImport.merge((LogImport.parseZip(z, today) as Parsed.Ok).value, empty, emptyMap(), now, ::newId)
-        assertEquals(ImportError(ImportErrorKind.BadValue, "entries.csv", 2), (result as Parsed.Failed).error)
+        assertEquals(ImportError(ImportErrorKind.BadFocus, "entries.csv", 2), (result as Parsed.Failed).error)
     }
 
     @Test fun percentAndScalePracticesRoundTripThroughExportAndImport() {
@@ -660,14 +663,14 @@ class LogImportTest {
     private fun practiceFile(csv: String): Parsed<ImportFile> =
         LogImport.parseZip(ZipContents(csv, LogExport.entriesCsv(emptyList(), emptyList()), null), today)
 
-    @Test fun theExportWritesAskFocusAsTheLastColumn() {
-        val off = aum.copy(askFocus = false)
-        val csv = LogExport.practicesCsv(listOf(yoga, off), emptyList())
-        assertEquals("ask_focus", LogExport.PRACTICE_HEADER.last())
-        assertTrue(csv.lineSequence().first().endsWith(",ask_focus"))
+    @Test fun theExportWritesAskFocusAndTheScheduleAsTheLastColumns() {
+        val off = aum.copy(askFocus = false, everyDays = 3, scheduleStart = day("2026-11-02"))
+        val csv = LogExport.practicesCsv(listOf(yoga.copy(scheduleStart = day("2026-10-01")), off), emptyList())
+        assertEquals(listOf("ask_focus", "every_days", "schedule_start"), LogExport.PRACTICE_HEADER.takeLast(3))
+        assertTrue(csv.lineSequence().first().endsWith(",ask_focus,every_days,schedule_start"))
         val lines = csv.trim().lines()
-        assertTrue(lines[1], lines[1].endsWith(",true"))
-        assertTrue(lines[2], lines[2].endsWith(",false"))
+        assertTrue(lines[1], lines[1].endsWith(",true,1,2026-10-01"))
+        assertTrue(lines[2], lines[2].endsWith(",false,3,2026-11-02"))
     }
 
     @Test fun aFileWithAskFocusKeepsEachPracticesSwitch() {
@@ -689,14 +692,14 @@ class LogImportTest {
 
     @Test fun aBadAskFocusValueNamesTheLine() {
         val rows = oldHeaderRows.mapIndexed { i, r -> r + (if (i == 1) "maybe" else "true") }
-        val csv = Csv.write(listOf(LogExport.PRACTICE_HEADER) + rows)
+        val csv = Csv.write(listOf(LogExport.PRACTICE_HEADER_ASK_FOCUS) + rows)
         assertEquals(ImportError(ImportErrorKind.BadFlag, "practices.csv", 3), (practiceFile(csv) as Parsed.Failed).error)
     }
 
     @Test fun aRowShorterThanItsHeaderIsStillAColumnError() {
         val csv = Csv.write(listOf(LogExport.PRACTICE_HEADER, oldHeaderRows[0]))
         assertEquals(ImportError(ImportErrorKind.WrongColumns, "practices.csv", 2), (practiceFile(csv) as Parsed.Failed).error)
-        val other = Csv.write(listOf(LogExport.PRACTICE_HEADER.dropLast(2)))
+        val other = Csv.write(listOf(LogExport.PRACTICE_HEADER.dropLast(1)))
         assertEquals(ImportError(ImportErrorKind.WrongColumns, "practices.csv", 1), (practiceFile(other) as Parsed.Failed).error)
     }
 
@@ -719,8 +722,129 @@ class LogImportTest {
     }
 
     @Test fun aHandMadePracticeWithoutFocusRowsGetsTheMeasureDefault() {
-        val c = merge(handMade("2026-11-01,A,10,\n2026-11-01,B,10,\n"), empty, mapOf("A" to Measure.Minutes, "B" to Measure.Done))
+        val c = merge(handMade("2026-11-01,A,10,\n2026-11-01,B,10,\n"), empty, mapOf("A" to Measure.Duration, "B" to Measure.Done))
         assertEquals(true, c.practices.single { it.name == "A" }.askFocus)
         assertEquals(false, c.practices.single { it.name == "B" }.askFocus)
+    }
+
+    // ---------- durations in seconds ----------
+
+    private fun durationValues(text: String) = merge(handMade(text), empty, mapOf("X" to Measure.Duration)).entries.map { it.value }
+
+    @Test fun aHandMadeDurationValueIsMinutesMinutesAndSecondsOrSeconds() {
+        assertEquals(listOf(1800, 90, 45), durationValues("2026-11-01,X,30,\n2026-11-02,X,1:30,\n2026-11-03,X,45s,\n"))
+    }
+
+    @Test fun aHandMadeDurationOverOneDayStopsTheImportWithItsLine() {
+        val result = LogImport.merge(handMade("2026-11-01,X,30,\n2026-11-02,X,1441,\n"), empty, mapOf("X" to Measure.Duration), now, ::newId)
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 2), (result as Parsed.Failed).error)
+        // Seconds over a day make no sense for any measure, so reading the file already stops.
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), handMadeError("2026-11-01,X,86401s,\n"))
+    }
+
+    @Test fun aHandMadeColonValueIsBadValueForOtherMeasures() {
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,1:30,\n", Measure.Count))
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), mergeError("2026-11-01,X,45s,\n", Measure.Scale))
+    }
+
+    @Test fun aHandMadeValueThatIsNothingAtAllFailsWhileReading() {
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), handMadeError("2026-11-01,X,1:75,\n"))
+        assertEquals(ImportError(ImportErrorKind.BadValue, "", 1), handMadeError("2026-11-01,X,fast,\n"))
+    }
+
+    @Test fun aNewHandMadePracticeIsDueEveryDayFromItsFirstDay() {
+        val c = merge(handMade("2026-11-03,X,5,\n2026-11-01,X,5,\n"), empty, mapOf("X" to Measure.Count))
+        val p = c.practices.single()
+        assertEquals(1, p.everyDays)
+        assertEquals(day("2026-11-01"), p.scheduleStart)
+    }
+
+    // ---------- older files and the schedule columns ----------
+
+    private val sevenColumns = listOf(
+        listOf("p-walk", "Walk", "minutes", "30", "2026-10-01", "false", ""),
+        listOf("p-yoga", "Hatha Yoga", "done", "", "2026-10-02", "false", ""),
+    )
+
+    private fun entriesFor(vararg rows: Entry) = LogExport.entriesCsv(rows.toList(), listOf(Practice("p-walk", "Walk", Measure.Duration, null, 0, false, 0)))
+
+    private fun zipOf(practices: String, entriesCsv: String) = (LogImport.parseZip(ZipContents(practices, entriesCsv, null), today) as Parsed.Ok).value
+
+    @Test fun aSevenColumnFileGetsEveryDayAndItsCreatedDayAsStart() {
+        val file = zipOf(Csv.write(listOf(LogExport.PRACTICE_HEADER_OLD) + sevenColumns), LogExport.entriesCsv(emptyList(), emptyList()))
+        assertEquals(listOf(1, 1), file.practices.map { it.everyDays })
+        val c = merge(file, empty)
+        assertEquals(listOf(day("2026-10-01"), day("2026-10-02")), c.practices.map { it.scheduleStart })
+        assertEquals(listOf(1, 1), c.practices.map { it.everyDays })
+    }
+
+    @Test fun anEightColumnFileGetsEveryDayAndItsCreatedDayAsStart() {
+        val rows = sevenColumns.map { it + "true" }
+        val c = merge(zipOf(Csv.write(listOf(LogExport.PRACTICE_HEADER_ASK_FOCUS) + rows), LogExport.entriesCsv(emptyList(), emptyList())), empty)
+        assertEquals(listOf(1, 1), c.practices.map { it.everyDays })
+        assertEquals(listOf(day("2026-10-01"), day("2026-10-02")), c.practices.map { it.scheduleStart })
+        assertEquals(listOf(true, true), c.practices.map { it.askFocus })
+    }
+
+    @Test fun aTenColumnFileKeepsItsSchedule() {
+        val rows = listOf(listOf("p-yoga", "Hatha Yoga", "done", "", "2026-10-02", "false", "", "false", "3", "2026-10-20"))
+        val c = merge(zipOf(Csv.write(listOf(LogExport.PRACTICE_HEADER) + rows), LogExport.entriesCsv(emptyList(), emptyList())), empty)
+        assertEquals(3, c.practices.single().everyDays)
+        assertEquals(day("2026-10-20"), c.practices.single().scheduleStart)
+    }
+
+    @Test fun aBadEveryDaysOrScheduleStartNamesTheLine() {
+        fun file(every: String, start: String) = Csv.write(
+            listOf(LogExport.PRACTICE_HEADER, listOf("p-yoga", "Yoga", "done", "", "2026-10-02", "false", "", "true", every, start)),
+        )
+        val bad = { csv: String -> (LogImport.parseZip(ZipContents(csv, LogExport.entriesCsv(emptyList(), emptyList()), null), today) as Parsed.Failed).error }
+        assertEquals(ImportError(ImportErrorKind.BadNumber, "practices.csv", 2), bad(file("0", "2026-10-02")))
+        assertEquals(ImportError(ImportErrorKind.BadNumber, "practices.csv", 2), bad(file("8", "2026-10-02")))
+        assertEquals(ImportError(ImportErrorKind.BadNumber, "practices.csv", 2), bad(file("x", "2026-10-02")))
+        assertEquals(ImportError(ImportErrorKind.BadDate, "practices.csv", 2), bad(file("2", "soon")))
+    }
+
+    @Test fun aMinutesPracticeInAnOldZipBecomesADurationInSeconds() {
+        val file = zipOf(
+            Csv.write(listOf(LogExport.PRACTICE_HEADER_OLD) + sevenColumns),
+            entriesFor(Entry("x1", "p-walk", day("2026-11-01"), 20, 6, null, 1)),
+        )
+        val c = merge(file, empty)
+        val walk = c.practices.single { it.id == "p-walk" }
+        assertEquals(Measure.Duration, walk.measure)
+        assertEquals(1800, walk.target)
+        assertEquals(1200, c.entries.single().value)
+        assertEquals(6, c.entries.single().focus)
+    }
+
+    @Test fun aMinutesPracticeRowWithoutAnIdIsMultipliedToo() {
+        val csv = LogExport.ENTRY_HEADER.joinToString(",") + "\r\n,,Walk,2026-11-03,5,,,\r\n"
+        val c = merge(zipOf(Csv.write(listOf(LogExport.PRACTICE_HEADER_OLD) + sevenColumns), csv), empty)
+        assertEquals(300, c.entries.single().value)
+    }
+
+    @Test fun onlyMinutesPracticesAreMultipliedInAnOldZip() {
+        val csv = LogExport.entriesCsv(
+            listOf(Entry("x1", "p-yoga", day("2026-11-01"), 1, null, null, 1), Entry("x2", "p-walk", day("2026-11-01"), 2, null, null, 2)),
+            listOf(Practice("p-yoga", "Hatha Yoga", Measure.Done, null, 0, false, 0), Practice("p-walk", "Walk", Measure.Duration, null, 0, false, 1)),
+        )
+        val c = merge(zipOf(Csv.write(listOf(LogExport.PRACTICE_HEADER_OLD) + sevenColumns), csv), empty)
+        assertEquals(mapOf("x1" to 1, "x2" to 120), c.entries.associate { it.id to it.value })
+    }
+
+    @Test fun anOldMinutesTargetThatIsMoreThanADayInSecondsIsBadTarget() {
+        val rows = listOf(listOf("p-walk", "Walk", "minutes", "1441", "2026-10-01", "false", ""))
+        val error = (LogImport.parseZip(ZipContents(Csv.write(listOf(LogExport.PRACTICE_HEADER_OLD) + rows), LogExport.entriesCsv(emptyList(), emptyList()), null), today) as Parsed.Failed).error
+        assertEquals(ImportError(ImportErrorKind.BadTarget, "practices.csv", 2), error)
+    }
+
+    @Test fun aNewExportWritesDurationAndKeepsSecondsAsTheyAre() {
+        val walk = Practice("p-walk", "Walk", Measure.Duration, 1800, day("2026-10-01"), false, 0, true, 2, day("2026-10-05"))
+        val e = Entry("x1", "p-walk", day("2026-11-01"), 90, null, null, 1)
+        val csv = LogExport.practicesCsv(listOf(walk), emptyList())
+        assertTrue(csv, csv.contains(",duration,1800,"))
+        val c = merge(zipOf(csv, LogExport.entriesCsv(listOf(e), listOf(walk))), empty)
+        assertEquals(walk, c.practices.single())
+        assertEquals(90, c.entries.single().value)
     }
 }

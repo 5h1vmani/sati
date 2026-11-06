@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.padakanti.sati.R
+import com.padakanti.sati.log.DurationText
 import com.padakanti.sati.log.EntryProblem
 import com.padakanti.sati.log.EntryRules
 import com.padakanti.sati.log.IdRules
@@ -23,7 +24,7 @@ import java.time.format.FormatStyle
 @Composable
 internal fun measureName(measure: Measure): String = stringResource(
     when (measure) {
-        Measure.Minutes -> R.string.log_measure_minutes
+        Measure.Duration -> R.string.log_measure_duration
         Measure.Count -> R.string.log_measure_count
         Measure.Done -> R.string.log_measure_done
         Measure.Percent -> R.string.log_measure_percent
@@ -31,14 +32,26 @@ internal fun measureName(measure: Measure): String = stringResource(
     },
 )
 
-/** An amount such as "20 minutes", "108 cycles", "Done", "Not done", "72%" or "7 of 10". */
+/** Seconds as "45 s", "1 min 30 s" or "30 min". */
 @Composable
-internal fun amountText(measure: Measure, value: Int): String = when (measure) {
-    Measure.Minutes -> pluralStringResource(R.plurals.log_minutes, value, value)
-    Measure.Count -> pluralStringResource(R.plurals.log_cycles, value, value)
-    Measure.Done -> stringResource(if (value == EntryRules.NOT_DONE_VALUE) R.string.log_not_done else R.string.log_done)
-    Measure.Percent -> stringResource(R.string.log_percent_value, value)
-    Measure.Scale -> stringResource(R.string.log_scale_value, value, EntryRules.SCALE_MAX)
+internal fun durationText(seconds: Int): String {
+    val (minutes, rest) = DurationText.split(seconds)
+    return when {
+        minutes == 0 -> stringResource(R.string.log_duration_s, rest)
+        rest == 0 -> stringResource(R.string.log_duration_min, minutes)
+        else -> stringResource(R.string.log_duration_min_s, minutes, rest)
+    }
+}
+
+/** An amount such as "20 min", "108 cycles", "Done", "72%" or "7 of 10". A value of 0 is "Not done" for every measure. */
+@Composable
+internal fun amountText(measure: Measure, value: Int): String = when {
+    value == EntryRules.NOT_DONE_VALUE -> stringResource(R.string.log_not_done)
+    measure == Measure.Duration -> durationText(value)
+    measure == Measure.Count -> pluralStringResource(R.plurals.log_cycles, value, value)
+    measure == Measure.Done -> stringResource(R.string.log_done)
+    measure == Measure.Percent -> stringResource(R.string.log_percent_value, value)
+    else -> stringResource(R.string.log_scale_value, value, EntryRules.SCALE_MAX)
 }
 
 /** The progress of one Today row, such as "80 of 108 cycles". */
@@ -47,11 +60,11 @@ internal fun progressText(row: TodayRow): String {
     val target = row.target
     val rating = row.rating
     return when {
-        row.practice.measure == Measure.Done ->
-            stringResource(if (row.done) R.string.log_done else if (row.notDone) R.string.log_not_done else R.string.log_not_done_yet)
+        row.notDone -> stringResource(R.string.log_not_done)
+        row.practice.measure == Measure.Done -> stringResource(if (row.done) R.string.log_done else R.string.log_not_done_yet)
         rating != null -> amountText(row.practice.measure, rating)
-        target != null && row.practice.measure == Measure.Minutes ->
-            pluralStringResource(R.plurals.log_minutes_of_target, target, row.total, target)
+        target != null && row.practice.measure == Measure.Duration ->
+            stringResource(R.string.log_progress_of, durationText(row.total), durationText(target))
         target != null -> pluralStringResource(R.plurals.log_cycles_of_target, target, row.total, target)
         !row.done -> stringResource(R.string.log_not_done_yet)
         else -> amountText(row.practice.measure, row.total)
@@ -68,9 +81,10 @@ internal fun dayLabel(day: Long, today: Long): String = when (day) {
 @Composable
 internal fun entryProblemText(problem: EntryProblem, measure: Measure): String = when (problem) {
     EntryProblem.BadValue -> when (measure) {
-        Measure.Minutes, Measure.Count -> stringResource(R.string.log_problem_value, EntryRules.MAX_VALUE)
+        Measure.Duration -> stringResource(R.string.log_problem_value_duration)
+        Measure.Count -> stringResource(R.string.log_problem_value, EntryRules.MAX_VALUE)
         Measure.Done -> stringResource(R.string.log_problem_value_done)
-        Measure.Percent -> stringResource(R.string.log_problem_value_range, EntryRules.PERCENT_MIN, EntryRules.PERCENT_MAX)
+        Measure.Percent -> stringResource(R.string.log_problem_value_range, EntryRules.NOT_DONE_VALUE + 1, EntryRules.PERCENT_MAX)
         Measure.Scale -> stringResource(R.string.log_problem_value_range, EntryRules.SCALE_MIN, EntryRules.SCALE_MAX)
     }
     EntryProblem.BadFocus -> stringResource(R.string.log_problem_focus)
@@ -81,13 +95,16 @@ internal fun entryProblemText(problem: EntryProblem, measure: Measure): String =
 }
 
 @Composable
-internal fun practiceProblemText(problem: PracticeProblem): String = when (problem) {
+internal fun practiceProblemText(problem: PracticeProblem, measure: Measure): String = when (problem) {
     PracticeProblem.NameBlank -> stringResource(R.string.log_problem_name_blank)
     PracticeProblem.LimitReached -> pluralStringResource(R.plurals.log_practice_limit, PracticeRules.MAX_PRACTICES, PracticeRules.MAX_PRACTICES)
     PracticeProblem.NameHidden -> stringResource(R.string.log_problem_name_hidden)
     PracticeProblem.NameTooLong -> pluralStringResource(R.plurals.log_problem_name_long, PracticeRules.MAX_NAME, PracticeRules.MAX_NAME)
     PracticeProblem.NameTaken -> stringResource(R.string.log_problem_name_taken)
-    PracticeProblem.TargetInvalid -> stringResource(R.string.log_problem_target, EntryRules.MAX_VALUE)
+    PracticeProblem.TargetInvalid ->
+        if (measure == Measure.Duration) stringResource(R.string.log_problem_target_duration)
+        else stringResource(R.string.log_problem_target, EntryRules.MAX_VALUE)
+    PracticeProblem.ScheduleInvalid -> stringResource(R.string.log_problem_schedule)
     PracticeProblem.MeasureLocked -> stringResource(R.string.log_measure_locked)
     PracticeProblem.NoPractice -> stringResource(R.string.log_problem_no_practice)
 }

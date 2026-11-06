@@ -42,10 +42,10 @@ class ArchiveRulesTest {
         assertNull(change.open)
     }
 
-    @Test fun measureCanChangeWithNoEntries() = assertNull(PracticeRules.measureProblem(Measure.Minutes, Measure.Count, 0))
+    @Test fun measureCanChangeWithNoEntries() = assertNull(PracticeRules.measureProblem(Measure.Duration, Measure.Count, 0))
 
     @Test fun measureIsLockedOnceThereIsAnEntry() =
-        assertEquals(PracticeProblem.MeasureLocked, PracticeRules.measureProblem(Measure.Minutes, Measure.Count, 1))
+        assertEquals(PracticeProblem.MeasureLocked, PracticeRules.measureProblem(Measure.Duration, Measure.Count, 1))
 
-    @Test fun keepingTheMeasureIsAlwaysAllowed() = assertNull(PracticeRules.measureProblem(Measure.Minutes, Measure.Minutes, 50))
+    @Test fun keepingTheMeasureIsAlwaysAllowed() = assertNull(PracticeRules.measureProblem(Measure.Duration, Measure.Duration, 50))
 }

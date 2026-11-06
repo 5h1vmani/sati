@@ -24,22 +24,28 @@ object EntryRules {
     const val MAX_VALUE = 99_999
     const val MAX_NOTE = 1_000
 
-    /** A done entry has value 1. A not-done entry has value 0. */
-    const val DONE_VALUE = 1
-    const val NOT_DONE_VALUE = 0
+    /** The most seconds a Duration entry or target may have: one day. */
+    const val MAX_SECONDS = 86_400
 
-    /** A percent entry is from 0 to 100. A scale entry is a score from 1 to 10. */
-    const val PERCENT_MIN = 0
+    /** An entry has value 0 when it is marked not done, for every measure. A done entry has value 1. */
+    const val NOT_DONE_VALUE = 0
+    const val DONE_VALUE = 1
+
+    /** A percent entry is from 1 to 100, and a scale entry is a score from 1 to 10. */
     const val PERCENT_MAX = 100
     const val SCALE_MIN = 1
     const val SCALE_MAX = 10
 
-    /** The values an entry of a practice measured as [measure] may have. */
-    fun valueRange(measure: Measure): IntRange = when (measure) {
-        Measure.Minutes, Measure.Count -> 1..MAX_VALUE
-        Measure.Done -> NOT_DONE_VALUE..DONE_VALUE
-        Measure.Percent -> PERCENT_MIN..PERCENT_MAX
-        Measure.Scale -> SCALE_MIN..SCALE_MAX
+    /** The values an entry of a practice measured as [measure] may have. 0 means not done. */
+    fun valueRange(measure: Measure): IntRange = NOT_DONE_VALUE..maxValue(measure)
+
+    /** The most an entry of a practice measured as [measure] may have. */
+    fun maxValue(measure: Measure): Int = when (measure) {
+        Measure.Duration -> MAX_SECONDS
+        Measure.Count -> MAX_VALUE
+        Measure.Done -> DONE_VALUE
+        Measure.Percent -> PERCENT_MAX
+        Measure.Scale -> SCALE_MAX
     }
 
     /**
@@ -51,7 +57,7 @@ object EntryRules {
     fun valueProblem(measure: Measure, value: Int?, focus: Int?): EntryProblem? = when {
         value == null || value !in valueRange(measure) -> EntryProblem.BadValue
         focus != null && focus !in Focus.MIN..Focus.MAX -> EntryProblem.BadFocus
-        focus != null && measure == Measure.Done && value == NOT_DONE_VALUE -> EntryProblem.BadFocus
+        focus != null && value == NOT_DONE_VALUE -> EntryProblem.BadFocus
         else -> null
     }
 

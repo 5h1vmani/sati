@@ -122,11 +122,13 @@ The log is planned as a Room database. Room is Android's standard library for SQ
 
 ### Practices
 
-- The user keeps a list of practices, such as Sukha Kriya, AUM Chanting, Hatha Yoga and Kriya Yoga. Every practice is expected every day.
-- Each practice has one measure: minutes, a count of cycles, done, percent or scale. Percent is a value from 0 to 100. Scale is a score from 1 to 10. The measure can change only while the practice has no entries, because old entries would no longer match.
-- A done practice can also be marked **not done**. The mark is an entry with value 0, and a done entry has value 1.
-- A practice can have an optional daily target, such as 108 cycles or 30 minutes. Only minutes and cycles have a target. The target changes only what the screen shows. Any entry counts as done, so 80 of 108 counts and still shows as 80 of 108.
-- **Ask for focus.** Each practice has a switch for the focus score. It starts on for minutes and cycles, and off for done, percent and scale. The user can change it. A practice that is switched off keeps the focus its old entries already have.
+- The user keeps a list of practices, such as Sukha Kriya, AUM Chanting, Hatha Yoga and Kriya Yoga. A practice is expected every day, unless it repeats on a schedule.
+- **Order.** Each practice has Move up and Move down buttons in the practices list. Today follows that order.
+- **Repeat.** A practice can repeat every 2 to 7 days from a start day, which can be in the past or the future. It is due on the start day and then every N days. A due day that is missed does not move the schedule. The user can still log on a day that is not due. That entry counts, but it does not change the schedule. Today lists the due practices first. The others wait below "Not due today", with their next due day.
+- Each practice has one measure: duration, a count of cycles, done, percent or scale. A duration is stored in seconds, up to one day, and the form has a Minutes field and a Seconds field. Percent is a value from 1 to 100. Scale is a score from 1 to 10. The measure can change only while the practice has no entries, because old entries would no longer match.
+- **Not done.** Any practice can be marked not done. The mark is an entry with value 0 and no focus, for every measure. A done entry has value 1.
+- A practice can have an optional daily target, such as 108 cycles or 30 minutes. Only durations and cycles have a target. The target changes only what the screen shows. Any entry counts as done, so 80 of 108 counts and still shows as 80 of 108.
+- **Ask for focus.** Each practice has a switch for the focus score. It starts on for durations and cycles, and off for done, percent and scale. The user can change it. A practice that is switched off keeps the focus its old entries already have.
 - **Archive.** An archived practice leaves Today and keeps its history. It can be brought back. Each archive and return is stored with its date, because the analytics in 1.5.0 skip the archived days.
 - **Delete.** Deleting a practice also deletes its entries. The app first says how many entries will go and which sadhanas link to the practice, and it asks for confirmation.
 
@@ -137,35 +139,39 @@ The log is planned as a Room database. Room is Android's standard library for SQ
 - **Past days.** The entry form can choose any past day, so paper records can be typed in.
 - **Time.** The moment of writing is stored for sorting only. The screen does not ask for a time.
 - **Focus.** Focus is a score from 1 to 10, shown as a row of ten buttons. It is optional, and the form shows it only for practices that ask for focus. A not-done entry has no focus. Percentages from the paper notebook convert by dividing by 10 and rounding, with 1 as the lowest score.
-- **Several entries a day.** For minutes and cycles the values add up. For percent and scale the day's value is the average, rounded half up, never the sum. The day's focus is the average of the entries that have a score.
+- **Several entries a day.** For durations and cycles the values add up. For percent and scale the day's value is the average, rounded half up, never the sum. A not-done entry counts as 0 in that average. The day's focus is the average of the entries that have a score.
 - **Edit and delete.** Any entry can be changed or deleted. A delete can be undone for a few seconds.
 
 ### Today
 
 The Log tab opens on Today. It lists every active practice with its progress toward the target.
 
-- A done practice that does not ask for focus is logged with one tap on its row. A cross button on the row marks it not done with one tap. Once it is logged either way, a tap on the row opens its entries. The row shows a check for done, a cross for not done, and an empty circle for nothing logged.
-- A done practice that asks for focus opens the short form on a tap. A focus button saves it as done, and "No score" saves it as done without focus.
-- A percent practice has a number field. A scale practice has a row of ten buttons for its value. Both then show the focus buttons if the practice asks for focus. Today shows the day's value as "72%" or "7 of 10". Any entry counts as done.
-- For minutes or cycles, a tap opens a short form. The value is filled in with the target, or with the last value if there is no target. A tap on a focus button saves the entry. A "No score" button saves it without focus. The note is hidden behind "Add note".
+- A done practice that does not ask for focus is logged with one tap on its row. A cross button on every row that is due and has nothing logged marks it not done with one tap, and the snackbar offers Undo. A row that is not due has no cross button.
+- A tap on a row that already has an entry opens today's newest entry to edit, whatever the measure. The edit form has an "Add another entry" button. The list button on each row opens all entries of the practice.
+- The row shows a check for done, a red cross when it has only not-done entries, and an empty circle for nothing logged.
+- A done practice that asks for focus opens the short form on a tap. A focus button saves it as done, and "No score" saves it as done without focus. A practice that does not ask for focus has a Done button.
+- A percent practice has a number field. A scale practice has a row of ten buttons for its value. Both then show the focus buttons if the practice asks for focus. Today shows the day's value as "72%" or "7 of 10". An entry above 0 counts as done.
+- Every form has an outlined "Not done" button. It saves value 0 with no focus. Editing a not-done entry opens the form as for a new entry, so it can become a real entry.
+- For a duration, the form has a Minutes field and a Seconds field. Typing 30 in Minutes alone is 30 minutes. The values show as "45 s", "1 min 30 s" or "30 min".
+- For cycles, a tap opens a short form. The value is filled in with the target, or with the last value if there is no target. A tap on a focus button saves the entry. A "No score" button saves it without focus. The note is hidden behind "Add note".
 - The usual entry therefore takes two taps.
 
 ### Export and import
 
 The app sets `allowBackup="false"` and has no internet permission, so the export is the only backup.
 
-- **Export.** One ZIP file holds the practices, the entries and the saved sadhanas, including their stage links. The practices and entries are CSV files, so they open in a spreadsheet. The practices file has a last column, ask_focus. Import also reads a practices file without it, and then each practice gets the default for its measure. The user chooses where the file is saved.
+- **Export.** One ZIP file holds the practices, the entries and the saved sadhanas, including their stage links. The practices and entries are CSV files, so they open in a spreadsheet. The practices file ends with the columns ask_focus, every_days and schedule_start, and a duration is written as "duration" in seconds. Import also reads older files. Without the new columns, a practice gets the default focus switch for its measure, repeats every day and starts on the day it was created. An older file that says "minutes" is read as a duration, and its targets and values are multiplied by 60. The user chooses where the file is saved.
 - **Import.** The whole file is checked before anything changes, and the import runs as one transaction. A file with an error changes nothing and the app says which line failed. The saved sadhanas live in the settings, not in the database, so they are written right after the transaction. If the app is killed between the two, a second import adds the missing sadhanas.
 - **No duplicates.** Rows with an ID merge by that ID. A row whose ID already exists is skipped, so importing the same file twice changes nothing.
-- **Paper records.** Import also reads a CSV made by hand with four columns: date, practice, value and focus in percent. These rows have no ID. A value may end in a percent sign. Every value is checked against the measure of its practice, and one wrong row stops the whole import. For a done practice, 0 means not done and any value of 1 or more means done. A focus in a row is kept as it is. A row with the same practice, day and value as an existing entry is skipped. A practice name the app does not know creates a new practice, and the app asks for its measure.
+- **Paper records.** Import also reads a CSV made by hand with four columns: date, practice, value and focus in percent. These rows have no ID. A value may end in a percent sign for a percent practice. For a duration, a plain number is minutes, "1:30" is minutes and seconds, and "45s" is seconds. Every value is checked against the measure of its practice, and one wrong row stops the whole import. A value of 0 means not done. For a done practice, any value of 1 or more means done. A focus in a row is kept as it is. A row with the same practice, day and value as an existing entry is skipped. A practice name the app does not know creates a new practice, and the app asks for its measure.
 - **Export reminder.** The Log tab shows when the last export was made. After 30 days it asks for a new one.
 
 ## 1.4.0: Timer link, reminder and shortcuts
 
 ### Timer link
 
-- In the sadhana editor, each stage can be linked to a practice from the list. Only practices measured in minutes or done can be linked, because a stage knows only time.
-- **Values.** A minutes practice gets the whole minutes actually sat in that stage, rounded down. Pauses do not count. A stage with less than 1 minute logs nothing. A done practice is logged as done when its stage is reached.
+- In the sadhana editor, each stage can be linked to a practice from the list. Only duration or done practices can be linked, because a stage knows only time.
+- **Values.** A duration practice gets the seconds actually sat in that stage. Pauses do not count. A stage with no time logs nothing. A done practice is logged as done when its stage is reached.
 - **Safe writing.** When a sadhana ends, `finish()` saves the stage results in device-protected storage, next to the summary. `finish()` can run at boot before the first unlock, when the log cannot be opened. The next time the app opens, `LogController` moves the results into the log. Each result has an ID, so it is never added twice. A new sadhana start does not delete results that have not moved yet.
 - **Focus.** The summary asks for the focus of each new entry, and the user can skip it. The answer only updates the entries already in the log, so closing the app loses nothing.
 - **Deleted or archived practices.** Deleting or archiving a practice removes its stage links. The confirmation names the sadhanas affected.
@@ -195,7 +201,8 @@ Analytics come after the log has collected about two months of real entries. The
 ### Definitions
 
 - **Active day.** A day counts for a practice when the practice was active. It is active from the earlier of its creation and its first entry, except while it is archived.
-- **Done.** A practice is done on a day when it has at least one entry on that day. A not-done entry counts as a missed day, even though it is an entry. A done practice with both marks on one day counts as done. Percent and scale days count as done with any entry. Their daily value is the average of the day's entries.
+- **Done.** A practice is done on a day when it has at least one entry above 0 on that day. A not-done entry counts as a missed day, even though it is an entry. A day with both marks counts as done. Percent and scale days count as done with any entry above 0. Their daily value is the average of the day's entries, and a not-done entry counts as 0 in trends.
+- **Due days.** Streaks and missed days count only the days a practice is due. A not-done entry, or no entry, on a due day is a missed day. An entry on a day that is not due is extra. It neither breaks nor extends a streak.
 - **Today.** Today never counts as missed. It counts as done once it has an entry.
 
 ### Views

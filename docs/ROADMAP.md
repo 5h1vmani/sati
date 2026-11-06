@@ -123,7 +123,7 @@ The log is planned as a Room database. Room is Android's standard library for SQ
 ### Practices
 
 - The user keeps a list of practices, such as Sukha Kriya, AUM Chanting, Hatha Yoga and Kriya Yoga. A practice is expected every day, unless it repeats on a schedule.
-- **Order.** Each practice has Move up and Move down buttons in the practices list. Today follows that order.
+- **Order.** In the practices list the user presses and holds a row, then drags it to a new place. The list scrolls when the row nears an edge. Screen reader users get Move up and Move down actions on each row. Today follows that order.
 - **Repeat.** A practice can repeat every 2 to 7 days from a start day, which can be in the past or the future. It is due on the start day and then every N days. A due day that is missed does not move the schedule. The user can still log on a day that is not due. That entry counts, but it does not change the schedule. Today lists the due practices first. The others wait below "Not due today", with their next due day.
 - Each practice has one measure: duration, a count of cycles, done, percent or scale. A duration is stored in seconds, up to one day, and the form has a Minutes field and a Seconds field. Percent is a value from 1 to 100. Scale is a score from 1 to 10. The measure can change only while the practice has no entries, because old entries would no longer match.
 - **Not done.** Any practice can be marked not done. The mark is an entry with value 0 and no focus, for every measure. A done entry has value 1.
@@ -144,7 +144,9 @@ The log is planned as a Room database. Room is Android's standard library for SQ
 
 ### Today
 
-The Log tab opens on Today. It lists every active practice with its progress toward the target.
+The Log tab opens on Today. A menu button at the right of the heading holds Manage practices, Export, Import and the date of the last export. Under the heading, a summary card shows the log day, "6 of 15 done" for the practices due today, and a bar of done, not done and left.
+
+The practices are in one compact list with three sections: to do, logged today, and not due today. Each row has a round indicator: an empty ring, a ring filled toward the target, a filled check, or a red cross. Tapping a practice in the practices list opens its editor, where Archive and Delete are.
 
 - A done practice that does not ask for focus is logged with one tap on its row. A cross button on every row that is due and has nothing logged marks it not done with one tap, and the snackbar offers Undo. A row that is not due has no cross button.
 - A tap on a row that already has an entry opens today's newest entry to edit, whatever the measure. The edit form has an "Add another entry" button. The list button on each row opens all entries of the practice.
@@ -164,7 +166,7 @@ The app sets `allowBackup="false"` and has no internet permission, so the export
 - **Import.** The whole file is checked before anything changes, and the import runs as one transaction. A file with an error changes nothing and the app says which line failed. The saved sadhanas live in the settings, not in the database, so they are written right after the transaction. If the app is killed between the two, a second import adds the missing sadhanas.
 - **No duplicates.** Rows with an ID merge by that ID. A row whose ID already exists is skipped, so importing the same file twice changes nothing.
 - **Paper records.** Import also reads a CSV made by hand with four columns: date, practice, value and focus in percent. These rows have no ID. A value may end in a percent sign for a percent practice. For a duration, a plain number is minutes, "1:30" is minutes and seconds, and "45s" is seconds. Every value is checked against the measure of its practice, and one wrong row stops the whole import. A value of 0 means not done. For a done practice, any value of 1 or more means done. A focus in a row is kept as it is. A row with the same practice, day and value as an existing entry is skipped. A practice name the app does not know creates a new practice, and the app asks for its measure.
-- **Export reminder.** The Log tab shows when the last export was made. After 30 days it asks for a new one.
+- **Export reminder.** The menu shows when the last export was made. After 30 days the top of the tab asks for a new one. The first ask, before any export, is a note at the bottom of the list, so the rows do not jump after the first entry.
 
 ## 1.4.0: Timer link, reminder and shortcuts
 

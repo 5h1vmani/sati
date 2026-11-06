@@ -31,7 +31,7 @@ Sadhana is a timer for a timed practice, such as breathing exercises, chanting o
 
 The practice log records every practice, not only the timed ones.
 
-- Keep a list of practices, each counted as a duration (minutes and seconds), cycles, done, percent or a scale of 1 to 10. Durations and cycles can have a daily target. Move practices up and down, or let one repeat every 2 to 7 days.
+- Keep a list of practices, each counted as a duration (minutes and seconds), cycles, done, percent or a scale of 1 to 10. Durations and cycles can have a daily target. Drag practices into order, or let one repeat every 2 to 7 days.
 - Today shows each practice and its progress. A done practice takes one tap, and a cross button marks any due practice not done. Other entries take two taps. A tap on a logged row edits its entry.
 - A focus score from 1 to 10 is optional for each practice. A switch in the practice turns it on or off.
 - Add entries for past days, so paper records can be typed in. Any entry can be edited or deleted, with Undo.

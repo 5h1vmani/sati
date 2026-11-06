@@ -60,9 +60,10 @@ class TimeTextTest {
     @Test fun stagesAndSettle() {
         assertEquals("20 min", TimeText.stages(listOf(Stage(20))))
         assertEquals("30 + 30 min", TimeText.stages(listOf(Stage(30), Stage(30))))
-        assertEquals("30 seconds", TimeText.settle(30))
-        assertEquals("1 minute", TimeText.settle(60))
-        assertEquals("2 minutes", TimeText.settle(120))
+        assertEquals("10 sec", TimeText.settle(10))
+        assertEquals("30 sec", TimeText.settle(30))
+        assertEquals("1 min", TimeText.settle(60))
+        assertEquals("2 min", TimeText.settle(120))
     }
 
     @Test fun rhythmHintUsesSchedulerLimits() =

@@ -20,7 +20,7 @@ data class Sadhana(
     companion object {
         const val MAX_STAGES = 10
         const val MAX_STAGE_MIN = 240
-        val SETTLE_CHOICES = listOf(0, 30, 60, 120)
+        val SETTLE_CHOICES = listOf(0, 10, 30, 60, 120)
 
         /** Shown the first time the Sadhana tab opens. The user can edit or delete them. */
         val STARTERS = listOf(

@@ -26,9 +26,73 @@ data class TodayRow(
     val latest: Entry?,
 ) {
     val notDone: Boolean get() = logged && !done
+
+    /**
+     * What the round indicator of the row shows. Empty is nothing logged. Partial is done,
+     * with a target that the total has not reached. Done is done, with no target or a target met.
+     * NotDone is a logged practice with only not-done entries.
+     */
+    val status: RowStatus
+        get() = when {
+            notDone -> RowStatus.NotDone
+            !logged -> RowStatus.Empty
+            target != null && total < target -> RowStatus.Partial
+            else -> RowStatus.Done
+        }
+
+    /** How much of the ring is filled: total over target, from 0 to 1. It is 0 without a target. */
+    val fraction: Float
+        get() = if (target == null || target <= 0) 0f else (total.toFloat() / target).coerceIn(0f, 1f)
 }
 
+enum class RowStatus { Empty, Partial, Done, NotDone }
+
+/**
+ * The count at the top of Today, for the practices due today only. [done] have an entry
+ * above 0. [notDone] have only not-done entries. The rest are still [left].
+ */
+data class DaySummary(val due: Int, val done: Int, val notDone: Int) {
+    val left: Int get() = due - done - notDone
+    val allLogged: Boolean get() = due > 0 && left == 0
+    val nothingDue: Boolean get() = due == 0
+}
+
+/** The rows of Today in its three sections. Each keeps position order. */
+data class TodaySections(val todo: List<TodayRow>, val logged: List<TodayRow>, val notDue: List<TodayRow>)
+
+/** How a next due day is worded: "Tomorrow", a weekday name, or a date. */
+enum class NextDueWording { Tomorrow, Weekday, Date }
+
 object Today {
+    /** Counts the rows that are due. A row that is not due is not counted, even when it has an entry. */
+    fun summary(rows: List<TodayRow>): DaySummary {
+        val due = rows.filter { it.due }
+        return DaySummary(due.size, due.count { it.done }, due.count { it.notDone })
+    }
+
+    /**
+     * To do: due and nothing logged. Logged: due with any entry, done or not done.
+     * Not due: the rest. Each section is in position order, and the order the rows came in breaks a tie.
+     */
+    fun sections(rows: List<TodayRow>): TodaySections {
+        val ordered = rows.sortedBy { it.practice.position }
+        return TodaySections(
+            todo = ordered.filter { it.due && !it.logged },
+            logged = ordered.filter { it.due && it.logged },
+            notDue = ordered.filterNot { it.due },
+        )
+    }
+
+    /**
+     * Tomorrow for the next day, a weekday name for the 2nd to the 6th day ahead (the 7th would
+     * repeat today's weekday), and a date for anything later.
+     */
+    fun nextDueWording(nextDue: Long, today: Long): NextDueWording = when (nextDue - today) {
+        1L -> NextDueWording.Tomorrow
+        in 2L..6L -> NextDueWording.Weekday
+        else -> NextDueWording.Date
+    }
+
     /** The average of [values], rounded half up. [values] must not be empty and must not hold negative numbers. */
     fun averageRoundedHalfUp(values: List<Int>): Int = Math.floorDiv(2L * values.sumOf { it.toLong() } + values.size, 2L * values.size).toInt()
 

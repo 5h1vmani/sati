@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -394,6 +395,9 @@ internal fun PracticeEditor(
     initial: Practice?,
     today: Long,
     onSave: suspend (name: String, measure: Measure, target: Int?, askFocus: Boolean, everyDays: Int, scheduleStart: Long) -> PracticeProblem?,
+    onArchive: (archived: Boolean) -> Unit,
+    onDelete: () -> Unit,
+    onEntries: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
@@ -568,6 +572,36 @@ internal fun PracticeEditor(
                     Switch(checked = askFocus, onCheckedChange = null)
                 }
                 problem?.let { Text(practiceProblemText(it, measure), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+                if (initial != null) {
+                    // Archive and delete close the editor, so they wait until the changes are saved or dropped.
+                    val changed = name != initial.name || measure != initial.measure ||
+                        targetText != (startTarget?.first ?: "") || targetSecondsText != (startTarget?.second ?: "") ||
+                        everyDays != initial.everyDays || scheduleStart != initial.scheduleStart || askFocus != initial.askFocus
+                    // The only way to the entries of an archived practice, which Today does not show.
+                    OutlinedButton(onClick = onEntries, enabled = !changed, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.log_show_entries))
+                    }
+                    if (changed) {
+                        Text(
+                            stringResource(R.string.log_save_first),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    // Archive and delete live here, not on the list. Delete still asks first, and says how many entries go.
+                    OutlinedButton(onClick = { onArchive(!initial.archived) }, enabled = !changed, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(if (initial.archived) R.string.log_restore_action else R.string.log_archive_action))
+                    }
+                    Button(
+                        onClick = onDelete,
+                        enabled = !changed,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        ),
+                    ) { Text(stringResource(R.string.log_delete_confirm)) }
+                }
             }
         }
     }

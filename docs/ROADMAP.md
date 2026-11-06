@@ -25,8 +25,8 @@ A release comes out about every 3 to 4 weeks. This gives testers time to try eac
 | 1.1.0 | 2 | 31 Oct 2026 | Quiet during Do Not Disturb, tests for the bell decision, instant notices, release signing | Done |
 | 1.2.0 | 3 | 5 Nov 2026 | Sadhana timer, quiet during phone calls, code clean-up | Done |
 | — | — | 5 Nov 2026 | Check that F-Droid can rebuild the same APK, on 1.2.0 | Done, one fix |
-| 1.3.0 | 4 | Early Dec 2026 | Practice log, Today, export and import | Planned |
-| — | — | Early Dec 2026 | Repeat the rebuild check on 1.3.0, the first build with a database | Planned |
+| 1.3.0 | 4 | Early Dec 2026 | Practice log, Today, export and import | Done, 6 Nov 2026 |
+| — | — | Early Dec 2026 | Repeat the rebuild check on 1.3.0, the first build with a database | Done, 6 Nov 2026, identical |
 | 1.4.0 | 5 | Late Dec 2026 | Timer link, evening reminder, launcher shortcuts | Planned |
 | 1.5.0 | 6 | Late Jan 2027 | Analytics and streaks | Planned |
 | — | — | After 30 Jan 2027 | Resubmit to F-Droid | Planned |

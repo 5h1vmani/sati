@@ -81,12 +81,8 @@ object TimeText {
     fun stages(stages: List<Stage>): String =
         if (stages.size == 1) length(stages[0].minutes) else stages.joinToString(" + ") { "${it.minutes}" } + " min"
 
-    /** "30 seconds", "1 minute", "2 minutes". */
-    fun settle(seconds: Int) = when {
-        seconds < 60 -> "$seconds seconds"
-        seconds == 60 -> "1 minute"
-        else -> "${seconds / 60} minutes"
-    }
+    /** Short, so the choices fit in one row: "10 sec", "1 min", "2 min". */
+    fun settle(seconds: Int) = if (seconds < 60) "$seconds sec" else "${seconds / 60} min"
 
     /**
      * Where a sadhana stands, in a few words: "Settling in", "Stage 1 of 2 · Breathing",

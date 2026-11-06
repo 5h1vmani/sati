@@ -200,4 +200,125 @@ class TodayTest {
         assertEquals("b", row(aum, newer, older).latest!!.id)
         assertNull(row(aum).latest)
     }
+
+    // ---------- summary, sections, ring ----------
+
+    private fun rowsFor(practices: List<Practice>, vararg entries: Entry) = Today.rows(practices, entries.toList(), day)
+
+    @Test fun theSummaryCountsOnlyPracticesDueToday() {
+        // aum and yoga are due, every3 is not. The entry of the practice that is not due is not counted.
+        val rows = rowsFor(listOf(aum, yoga, every3), entry("a", every3, 1, null), entry("b", aum, 5, null))
+        assertEquals(DaySummary(due = 2, done = 1, notDone = 0), Today.summary(rows))
+        assertEquals(1, Today.summary(rows).left)
+    }
+
+    @Test fun theSummaryCountsDoneNotDoneAndLeft() {
+        val rows = rowsFor(
+            listOf(aum, yoga, mood, energy),
+            entry("a", aum, 5, null),
+            entry("b", yoga, 0, null),
+            entry("c", mood, 0, null),
+        )
+        val summary = Today.summary(rows)
+        assertEquals(DaySummary(due = 4, done = 1, notDone = 2), summary)
+        assertEquals(1, summary.left)
+        assertFalse(summary.allLogged)
+        assertFalse(summary.nothingDue)
+    }
+
+    @Test fun aDayWithBothMarksOnOnePracticeCountsAsDoneOnly() {
+        val summary = Today.summary(rowsFor(listOf(yoga), entry("a", yoga, 0, null), entry("b", yoga, 1, null)))
+        assertEquals(DaySummary(1, 1, 0), summary)
+    }
+
+    @Test fun everyDuePracticeLoggedMeansAllLogged() {
+        val summary = Today.summary(rowsFor(listOf(aum, yoga), entry("a", aum, 5, null), entry("b", yoga, 0, null)))
+        assertEquals(DaySummary(2, 1, 1), summary)
+        assertTrue(summary.allLogged)
+        assertEquals(0, summary.left)
+    }
+
+    @Test fun withNothingDueTheSummaryIsEmpty() {
+        val summary = Today.summary(rowsFor(listOf(every3, soon)))
+        assertEquals(DaySummary(0, 0, 0), summary)
+        assertTrue(summary.nothingDue)
+        assertFalse(summary.allLogged)
+        assertEquals(DaySummary(0, 0, 0), Today.summary(emptyList()))
+    }
+
+    @Test fun sectionsAreToDoLoggedAndNotDue() {
+        val rows = rowsFor(
+            listOf(aum, yoga, mood, energy, every3),
+            entry("a", aum, 5, null),
+            entry("b", mood, 0, null),
+            entry("c", every3, 1, null),
+        )
+        val sections = Today.sections(rows)
+        assertEquals(listOf("p2", "p5"), sections.todo.map { it.practice.id })
+        assertEquals(listOf("p1", "p4"), sections.logged.map { it.practice.id })
+        assertEquals(listOf("p6"), sections.notDue.map { it.practice.id })
+    }
+
+    @Test fun aNotDueRowStaysInItsSectionEvenWhenLogged() {
+        val sections = Today.sections(rowsFor(listOf(every3), entry("a", every3, 1, null)))
+        assertEquals(emptyList<TodayRow>(), sections.todo)
+        assertEquals(emptyList<TodayRow>(), sections.logged)
+        assertEquals(1, sections.notDue.size)
+    }
+
+    @Test fun eachSectionKeepsPositionOrder() {
+        val first = aum.copy(position = 7)
+        val second = yoga.copy(position = 2)
+        val third = mood.copy(position = 4)
+        val sections = Today.sections(rowsFor(listOf(first, second, third)))
+        assertEquals(listOf("p2", "p4", "p1"), sections.todo.map { it.practice.id })
+    }
+
+    @Test fun anEmptySectionHasNoRows() {
+        val sections = Today.sections(rowsFor(listOf(aum), entry("a", aum, 5, null)))
+        assertEquals(emptyList<TodayRow>(), sections.todo)
+        assertEquals(emptyList<TodayRow>(), sections.notDue)
+        assertEquals(1, sections.logged.size)
+    }
+
+    @Test fun theStatusIsEmptyWithNothingLogged() {
+        assertEquals(RowStatus.Empty, row(aum).status)
+        assertEquals(0f, row(aum).fraction, 0f)
+    }
+
+    @Test fun belowTheTargetTheRingIsPartialAndFilledByTotalOverTarget() {
+        val r = row(aum, entry("a", aum, 27, null))
+        assertEquals(RowStatus.Partial, r.status)
+        assertEquals(0.25f, r.fraction, 0.0001f)
+    }
+
+    @Test fun atOrAboveTheTargetTheStatusIsDoneAndTheRingIsFull() {
+        assertEquals(RowStatus.Done, row(aum, entry("a", aum, 108, null)).status)
+        assertEquals(RowStatus.Done, row(aum, entry("a", aum, 200, null)).status)
+        assertEquals(1f, row(aum, entry("a", aum, 200, null)).fraction, 0f)
+    }
+
+    @Test fun withoutATargetAnyEntryAboveZeroIsDone() {
+        assertEquals(RowStatus.Done, row(mood, entry("a", mood, 3, null)).status)
+        assertEquals(RowStatus.Done, row(yoga, entry("a", yoga, 1, null)).status)
+        assertEquals(0f, row(yoga, entry("a", yoga, 1, null)).fraction, 0f)
+    }
+
+    @Test fun onlyNotDoneEntriesGiveTheRedCross() {
+        assertEquals(RowStatus.NotDone, row(aum, entry("a", aum, 0, null)).status)
+        assertEquals(RowStatus.NotDone, row(yoga, entry("a", yoga, 0, null)).status)
+    }
+
+    @Test fun nextDueIsTomorrowForTheNextDay() {
+        assertEquals(NextDueWording.Tomorrow, Today.nextDueWording(501, 500))
+    }
+
+    @Test fun nextDueIsAWeekdayForTheSecondToSixthDayAhead() {
+        (502L..506L).forEach { assertEquals("$it", NextDueWording.Weekday, Today.nextDueWording(it, 500)) }
+    }
+
+    @Test fun nextDueIsADateFromTheSeventhDayAhead() {
+        assertEquals(NextDueWording.Date, Today.nextDueWording(507, 500))
+        assertEquals(NextDueWording.Date, Today.nextDueWording(900, 500))
+    }
 }

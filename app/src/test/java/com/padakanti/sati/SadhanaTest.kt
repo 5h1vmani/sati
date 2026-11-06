@@ -95,6 +95,7 @@ class SadhanaTest {
         assertEquals("A stage can be up to 240 minutes.", Sadhana.problem(halves.copy(stages = listOf(Stage(241)))))
         assertEquals("A sadhana can have up to 10 stages.", Sadhana.problem(halves.copy(stages = List(11) { Stage(1) })))
         assertEquals("Choose a settling time from the list.", Sadhana.problem(halves.copy(settleSec = 45)))
+        assertEquals(null, Sadhana.problem(halves.copy(settleSec = 10)))
     }
 
     @Test fun startersAreValid() = Sadhana.STARTERS.forEach { assertNull(Sadhana.problem(it)) }

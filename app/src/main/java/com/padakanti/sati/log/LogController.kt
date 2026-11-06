@@ -133,6 +133,15 @@ object LogController {
         }
     }
 
+    /** Moves a practice to place [index], after a drag. All new positions are written in one transaction. */
+    suspend fun moveTo(context: Context, id: String, index: Int) {
+        val db = LogDb.get(context)
+        db.inTransaction {
+            val dao = db.dao()
+            PracticeRules.moveTo(dao.allPractices(), id, index).forEach { dao.upsertPractice(it) }
+        }
+    }
+
     /** Moves a practice one place up or down. Today follows the order. The change is one transaction. */
     suspend fun movePractice(context: Context, id: String, up: Boolean) {
         val db = LogDb.get(context)

@@ -115,4 +115,30 @@ class ScheduleTest {
         val changed = PracticeRules.moved(list, "c", up = true)
         assertEquals(mapOf("a" to 0, "b" to 2, "c" to 1), positions(changed))
     }
+
+    // ---------- moving to a place ----------
+
+    @Test fun movingToAPlaceTakesTheRowThereAndShiftsTheOthers() {
+        val list = listOf(p("a", 0), p("b", 1), p("c", 2), p("d", 3))
+        assertEquals(mapOf("a" to 1, "b" to 2, "c" to 3, "d" to 0), positions(PracticeRules.moveTo(list, "d", 0)))
+        assertEquals(mapOf("a" to 3, "b" to 0, "c" to 1, "d" to 2), positions(PracticeRules.moveTo(list, "a", 3)))
+    }
+
+    @Test fun movingToTheSamePlaceOrAnUnknownPlaceChangesNothing() {
+        val list = listOf(p("a", 0), p("b", 1), p("c", 2))
+        assertEquals(emptyList<Practice>(), PracticeRules.moveTo(list, "b", 1))
+        assertEquals(emptyList<Practice>(), PracticeRules.moveTo(list, "b", 3))
+        assertEquals(emptyList<Practice>(), PracticeRules.moveTo(list, "b", -1))
+        assertEquals(emptyList<Practice>(), PracticeRules.moveTo(list, "x", 0))
+    }
+
+    @Test fun moveToWritesOnlyTheRowsBetweenTheOldAndNewPlace() {
+        val list = listOf(p("a", 0), p("b", 1), p("c", 2), p("d", 3), p("e", 4))
+        assertEquals(mapOf("b" to 2, "c" to 1), positions(PracticeRules.moveTo(list, "b", 2)))
+    }
+
+    @Test fun moveToRenumbersAfterGaps() {
+        val list = listOf(p("a", 3), p("b", 8), p("c", 20))
+        assertEquals(mapOf("c" to 0, "a" to 1, "b" to 2), positions(PracticeRules.moveTo(list, "c", 0)))
+    }
 }

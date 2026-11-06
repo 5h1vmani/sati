@@ -23,6 +23,33 @@
     <string name="log_add_practice">Add practice</string>
     <string name="log_all_archived">All your practices are archived. Return one from the practices list to log it again.</string>
     <string name="log_manage">Manage practices</string>
+    <string name="log_more_options">More options</string>
+    <string name="log_menu_never_exported">Never exported</string>
+    <string name="log_menu_exported_today">Last export: today</string>
+    <plurals name="log_menu_exported_days">
+        <item quantity="one">Last export: %d day ago</item>
+        <item quantity="other">Last export: %d days ago</item>
+    </plurals>
+    <string name="log_summary_day">Today, %1$s</string>
+    <string name="log_summary_title">%1$d of %2$d done</string>
+    <string name="log_summary_all">All logged today</string>
+    <string name="log_summary_none">Nothing due today</string>
+    <string name="log_summary_not_done">%1$d not done</string>
+    <string name="log_summary_left">%1$d left</string>
+    <string name="log_summary_description">%1$s. %2$s</string>
+    <string name="log_separator">" · "</string>
+    <string name="log_row_focus">%1$s · Focus %2$.1f</string>
+    <string name="log_row_two">%1$s · %2$s</string>
+    <string name="log_section_logged">Logged today</string>
+    <string name="log_partial_mark">Partly done today</string>
+    <string name="log_target_short">Target %1$s</string>
+    <string name="log_not_logged_yet">Not logged yet</string>
+    <string name="log_tomorrow">Tomorrow</string>
+    <string name="log_action_move_up">Move up</string>
+    <string name="log_action_move_down">Move down</string>
+    <string name="log_archive_action">Archive</string>
+    <string name="log_restore_action">Restore</string>
+    <string name="log_open_practice">Edit practice</string>
     <string name="log_done">Done</string>
     <string name="log_not_done_yet">Not done yet</string>
     <string name="log_done_mark">Done today</string>
@@ -91,6 +118,10 @@
     <string name="log_edit_entry">Edit entry</string>
     <string name="log_delete_entry">Delete entry</string>
     <string name="log_entry_deleted">Entry deleted.</string>
+    <string name="log_show_entries">Show entries</string>
+    <string name="log_save_first">Save or close your changes first.</string>
+    <string name="log_import_help">Choose a Sati export (.zip), or a CSV file with four columns: date, practice, value and focus.\n\nExample: 2026-11-01,Kriya,30,80%\n\nDuration: 30 means minutes, 1:30 or 45s also work. Done: 1 for done, 0 for not done. Focus is a percent and may be empty.</string>
+    <string name="log_import_choose">Choose file</string>
     <string name="log_undo_failed">The entry cannot come back, because its practice was changed or deleted.</string>
     <string name="log_show_more">Show more entries</string>
 
@@ -112,14 +143,7 @@
     <string name="log_fewer_days">Repeat fewer days</string>
     <string name="log_more_days">Repeat more days</string>
     <string name="log_starts_on">Starts on</string>
-    <string name="log_move_up">Move %1$s up</string>
-    <string name="log_move_down">Move %1$s down</string>
-    <string name="log_measure_line_target">%1$s. Target: %2$s.</string>
     <string name="log_archived">Archived</string>
-    <string name="log_archive_practice">Archive %1$s</string>
-    <string name="log_return_practice">Return %1$s</string>
-    <string name="log_edit_practice">Edit %1$s</string>
-    <string name="log_delete_practice">Delete %1$s</string>
     <string name="log_practice_new_title">New practice</string>
     <string name="log_practice_edit_title">Edit practice</string>
     <string name="log_close_editor">Close without saving</string>
@@ -143,16 +167,8 @@
     <string name="log_delete_confirm">Delete</string>
 
     <!-- Export and import -->
-    <string name="log_backup_title">Backup</string>
-    <string name="log_backup_body">Sati keeps no copy online. Export saves your log and sadhanas in one file. Import reads such a file, or a CSV file with four columns: date, practice, value and focus in percent.</string>
     <string name="log_export">Export</string>
     <string name="log_import">Import</string>
-    <string name="log_never_exported">You have not exported yet.</string>
-    <string name="log_exported_today">Last export: today.</string>
-    <plurals name="log_exported_days">
-        <item quantity="one">Last export: %d day ago.</item>
-        <item quantity="other">Last export: %d days ago.</item>
-    </plurals>
     <string name="log_reminder_first">Your log exists only on this phone. Export it to keep a copy.</string>
     <plurals name="log_reminder_old">
         <item quantity="one">Your last export is more than %d day old. Export again to keep a copy.</item>

@@ -117,6 +117,8 @@ internal fun LogTab(
     // "" is a new practice, otherwise the id of the practice to edit. Null means closed.
     var editor by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by remember { mutableStateOf<Practice?>(null) }
+    // Import first explains the file formats, then opens the file picker.
+    var importHelp by remember { mutableStateOf(false) }
 
     // The user's "time to take action" setting can make the Undo last longer than the default.
     val undoMillis = LocalAccessibilityManager.current
@@ -160,6 +162,19 @@ internal fun LogTab(
     }
     BackHandler(enabled = view != TODAY) { view = if (opened != null) origin else TODAY }
 
+    ScreenHeading(stringResource(R.string.tab_log)) {
+        if (opened == null && view == TODAY) {
+            LogMenu(
+                lastExport = ui.logLastExport,
+                now = now,
+                busy = ui.logBusy,
+                onManage = { view = PRACTICES },
+                onExport = actions::exportLog,
+                onImport = { importHelp = true },
+            )
+        }
+    }
+
     when {
         opened != null -> PracticeView(
             practice = opened,
@@ -172,12 +187,10 @@ internal fun LogTab(
         view == PRACTICES -> PracticesView(
             practices = practices.orEmpty(),
             onBack = { view = TODAY },
-            onOpen = { openPractice(it.id, PRACTICES) },
             onAdd = { editor = "" },
             onEdit = { editor = it.id },
+            onDrop = { id, index -> LogController.scope.launch { LogController.moveTo(context, id, index) } },
             onMove = { p, up -> LogController.scope.launch { LogController.movePractice(context, p.id, up) } },
-            onArchive = { p, archived -> LogController.scope.launch { LogController.setArchived(context, p.id, archived) } },
-            onDelete = { deleting = it },
         )
         else -> TodayView(
             ui = ui,
@@ -207,7 +220,6 @@ internal fun LogTab(
                 }
             },
             onEntries = { openPractice(it.id, TODAY) },
-            onManage = { view = PRACTICES },
             onAddPractice = { editor = "" },
         )
     }
@@ -244,9 +256,33 @@ internal fun LogTab(
                     if (initial == null) LogController.addPractice(context, name, measure, target, askFocus, everyDays, scheduleStart)
                     else LogController.editPractice(context, initial.id, name, measure, target, askFocus, everyDays, scheduleStart)
                 },
+                onArchive = { archived ->
+                    editor = null
+                    if (initial != null) LogController.scope.launch { LogController.setArchived(context, initial.id, archived) }
+                },
+                onDelete = {
+                    editor = null
+                    deleting = initial
+                },
+                onEntries = {
+                    editor = null
+                    if (initial != null) openPractice(initial.id, PRACTICES)
+                },
                 onDismiss = { editor = null },
             )
         }
+    }
+
+    if (importHelp) {
+        AlertDialog(
+            onDismissRequest = { importHelp = false },
+            title = { Text(stringResource(R.string.log_import)) },
+            text = { Text(stringResource(R.string.log_import_help)) },
+            confirmButton = {
+                TextButton(onClick = { importHelp = false; actions.importLog() }) { Text(stringResource(R.string.log_import_choose)) }
+            },
+            dismissButton = { TextButton(onClick = { importHelp = false }) { Text(stringResource(R.string.log_cancel)) } },
+        )
     }
 
     deleting?.let { practice ->
@@ -277,7 +313,6 @@ private fun TodayView(
     onTap: (TodayRow) -> Unit,
     onNotDone: (TodayRow) -> Unit,
     onEntries: (Practice) -> Unit,
-    onManage: () -> Unit,
     onAddPractice: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
@@ -285,7 +320,7 @@ private fun TodayView(
     val total by remember { LogController.entryTotal(context) }.collectAsState(initial = 0)
 
     ImportCard(ui.logImport, actions)
-    // Only the 30-day reminder sits at the top. The first ask is in the Backup card, so the rows do not jump after the first entry.
+    // Only the 30-day reminder sits at the top. The first ask is at the bottom, so the rows do not jump after the first entry.
     if (ExportReminder.shouldRemind(ui.logLastExport, now, ZoneId.systemDefault())) {
         Notice(
             R.drawable.lucide_archive,
@@ -294,6 +329,13 @@ private fun TodayView(
             actionLabel = stringResource(R.string.log_export),
             onAction = actions::exportLog,
         )
+    }
+    if (ui.logBusy) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 4.dp)) {
+            CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+            Spacer(Modifier.width(12.dp))
+            Text(stringResource(R.string.log_working), style = MaterialTheme.typography.bodyMedium)
+        }
     }
 
     when {
@@ -308,105 +350,26 @@ private fun TodayView(
         }
         else -> {
             val rows = Today.rows(practices, entries, today)
-            if (rows.isEmpty()) Notice(R.drawable.lucide_archive, stringResource(R.string.log_all_archived))
-            // Due practices come first. The others wait below a heading, and can still be logged.
-            val (due, later) = rows.partition { it.due }
-            due.forEach { TodayCard(it, today, onClick = { onTap(it) }, onNotDone = { onNotDone(it) }, onEntries = { onEntries(it.practice) }) }
-            if (later.isNotEmpty()) {
-                Text(
-                    stringResource(R.string.log_not_due_heading),
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(start = 4.dp, top = 4.dp),
-                )
-                later.forEach { TodayCard(it, today, onClick = { onTap(it) }, onNotDone = { onNotDone(it) }, onEntries = { onEntries(it.practice) }) }
-            }
-            OutlinedButton(onClick = onManage, modifier = Modifier.fillMaxWidth()) {
-                Icon(painterResource(R.drawable.lucide_list_checks), null, Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.log_manage))
+            if (rows.isEmpty()) {
+                Notice(R.drawable.lucide_archive, stringResource(R.string.log_all_archived))
+            } else {
+                DaySummaryCard(Today.summary(rows), today)
+                val sections = Today.sections(rows)
+                TodaySection(null, sections.todo, today, onTap, onNotDone, onEntries)
+                TodaySection(stringResource(R.string.log_section_logged), sections.logged, today, onTap, onNotDone, onEntries)
+                TodaySection(stringResource(R.string.log_not_due_heading), sections.notDue, today, onTap, onNotDone, onEntries)
             }
         }
     }
 
-    BackupCard(ui, now, actions, askFirst = ExportReminder.shouldAskFirst(ui.logLastExport, hasEntries = total > 0))
-}
-
-@Composable
-private fun TodayCard(row: TodayRow, today: Long, onClick: () -> Unit, onNotDone: () -> Unit, onEntries: () -> Unit) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Row(Modifier.padding(start = 16.dp, top = 16.dp, bottom = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Three states: done, marked not done, and nothing logged.
-            Icon(
-                painterResource(
-                    when {
-                        row.done -> R.drawable.lucide_circle_check
-                        row.notDone -> R.drawable.lucide_circle_x
-                        else -> R.drawable.lucide_circle
-                    },
-                ),
-                stringResource(
-                    when {
-                        row.done -> R.string.log_done_mark
-                        row.notDone -> R.string.log_not_done_mark
-                        else -> R.string.log_nothing_logged_mark
-                    },
-                ),
-                Modifier.size(28.dp),
-                tint = when {
-                    row.done -> MaterialTheme.colorScheme.primary
-                    row.notDone -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.outline
-                },
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(row.practice.name, style = MaterialTheme.typography.titleMedium)
-                Text(progressText(row), style = MaterialTheme.typography.bodyMedium)
-                if (!row.due) {
-                    Text(
-                        stringResource(R.string.log_next_due, dayLabel(row.nextDue, today)),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                val target = row.target
-                if (target != null) {
-                    LinearProgressIndicator(
-                        progress = { (row.total.toFloat() / target).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                row.focusAverage?.let {
-                    Text(
-                        stringResource(R.string.log_focus_average, it),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            // A practice that is due and has nothing logged has a button to mark it not done in one tap.
-            if (row.due && !row.logged) {
-                IconButton(onClick = onNotDone) {
-                    Icon(
-                        painterResource(R.drawable.lucide_circle_x),
-                        stringResource(R.string.log_mark_not_done, row.practice.name),
-                        Modifier.size(20.dp),
-                    )
-                }
-            }
-            // A separate 48 dp button, so the entries are always one tap away, whatever a tap on the row does.
-            IconButton(onClick = onEntries) {
-                Icon(
-                    painterResource(R.drawable.lucide_list_checks),
-                    stringResource(R.string.log_open_entries, row.practice.name),
-                    Modifier.size(20.dp),
-                )
-            }
-        }
+    if (ExportReminder.shouldAskFirst(ui.logLastExport, hasEntries = total > 0)) {
+        Notice(
+            R.drawable.lucide_triangle_alert,
+            stringResource(R.string.log_reminder_first),
+            warning = true,
+            actionLabel = stringResource(R.string.log_export),
+            onAction = actions::exportLog,
+        )
     }
 }
 
@@ -457,69 +420,10 @@ private fun ImportCard(state: LogImportState, actions: SatiActions) {
     }
 }
 
-/**
- * When the last export was, and the two buttons for the Storage Access Framework.
- * With [askFirst], a warning says the log has no copy yet.
- */
-@Composable
-private fun BackupCard(ui: SatiUi, now: Long, actions: SatiActions, askFirst: Boolean) {
-    SectionCard(R.drawable.lucide_download, stringResource(R.string.log_backup_title)) {
-        val days = ExportReminder.daysSince(ui.logLastExport, now, ZoneId.systemDefault())
-        if (askFirst) {
-            Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(painterResource(R.drawable.lucide_triangle_alert), null, Modifier.size(20.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.log_reminder_first), style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        } else {
-            Text(
-                when (days) {
-                    null -> stringResource(R.string.log_never_exported)
-                    0 -> stringResource(R.string.log_exported_today)
-                    else -> pluralStringResource(R.plurals.log_exported_days, days, days)
-                },
-                style = MaterialTheme.typography.bodyLarge,
-            )
-        }
-        Text(stringResource(R.string.log_backup_body), style = MaterialTheme.typography.bodySmall)
-        if (ui.logBusy) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.log_working), style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // The first export is the one that matters most, so its button is the strong one.
-            val exportContent: @Composable () -> Unit = {
-                Icon(painterResource(R.drawable.lucide_download), null, Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.log_export))
-            }
-            if (askFirst) {
-                Button(onClick = actions::exportLog, enabled = !ui.logBusy) { exportContent() }
-            } else {
-                FilledTonalButton(onClick = actions::exportLog, enabled = !ui.logBusy) { exportContent() }
-            }
-            OutlinedButton(onClick = actions::importLog, enabled = !ui.logBusy) {
-                Icon(painterResource(R.drawable.lucide_upload), null, Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.log_import))
-            }
-        }
-    }
-}
-
 // ---------- One practice ----------
 
 @Composable
-private fun SubHeader(title: String, onBack: () -> Unit) {
+internal fun SubHeader(title: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
             Icon(painterResource(R.drawable.lucide_arrow_left), stringResource(R.string.log_back), Modifier.size(20.dp))
@@ -580,87 +484,6 @@ private fun EntryCard(practice: Practice, entry: Entry, today: Long, onEdit: () 
             }
             IconButton(onClick = onDelete) {
                 Icon(painterResource(R.drawable.lucide_trash_2), stringResource(R.string.log_delete_entry), Modifier.size(20.dp))
-            }
-        }
-    }
-}
-
-// ---------- Practices list ----------
-
-@Composable
-private fun PracticesView(
-    practices: List<Practice>,
-    onBack: () -> Unit,
-    onOpen: (Practice) -> Unit,
-    onAdd: () -> Unit,
-    onEdit: (Practice) -> Unit,
-    onMove: (Practice, Boolean) -> Unit,
-    onArchive: (Practice, Boolean) -> Unit,
-    onDelete: (Practice) -> Unit,
-) {
-    SubHeader(stringResource(R.string.log_practices_title), onBack)
-    // At the limit, every export can still be imported back, so no more can be added.
-    val full = practices.size >= PracticeRules.MAX_PRACTICES
-    Button(onClick = onAdd, enabled = !full, modifier = Modifier.fillMaxWidth()) {
-        Icon(painterResource(R.drawable.lucide_plus), null, Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.log_add_practice))
-    }
-    if (full) {
-        Text(
-            pluralStringResource(R.plurals.log_practice_limit, PracticeRules.MAX_PRACTICES, PracticeRules.MAX_PRACTICES),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-    }
-    if (practices.isEmpty()) {
-        Text(stringResource(R.string.log_no_practices), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(4.dp))
-    }
-    practices.forEachIndexed { index, p ->
-        Card(
-            onClick = { onOpen(p) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        ) {
-            // The text has the full width, and the five buttons sit in their own row, so a large font does not squeeze either.
-            Column(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp, end = 4.dp)) {
-                Text(p.name, style = MaterialTheme.typography.titleMedium)
-                val target = p.target
-                val line = if (target != null && PracticeRules.hasTarget(p.measure)) {
-                    stringResource(R.string.log_measure_line_target, measureName(p.measure), amountText(p.measure, target))
-                } else {
-                    measureName(p.measure)
-                }
-                Text(line, style = MaterialTheme.typography.bodyMedium)
-                if (p.archived) {
-                    Text(
-                        stringResource(R.string.log_archived),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    IconButton(onClick = { onMove(p, true) }, enabled = index > 0) {
-                        Icon(painterResource(R.drawable.lucide_arrow_up), stringResource(R.string.log_move_up, p.name), Modifier.size(20.dp))
-                    }
-                    IconButton(onClick = { onMove(p, false) }, enabled = index < practices.lastIndex) {
-                        Icon(painterResource(R.drawable.lucide_arrow_down), stringResource(R.string.log_move_down, p.name), Modifier.size(20.dp))
-                    }
-                    IconButton(onClick = { onEdit(p) }) {
-                        Icon(painterResource(R.drawable.lucide_pencil), stringResource(R.string.log_edit_practice, p.name), Modifier.size(20.dp))
-                    }
-                    IconButton(onClick = { onArchive(p, !p.archived) }) {
-                        Icon(
-                            painterResource(if (p.archived) R.drawable.lucide_archive_restore else R.drawable.lucide_archive),
-                            stringResource(if (p.archived) R.string.log_return_practice else R.string.log_archive_practice, p.name),
-                            Modifier.size(20.dp),
-                        )
-                    }
-                    IconButton(onClick = { onDelete(p) }) {
-                        Icon(painterResource(R.drawable.lucide_trash_2), stringResource(R.string.log_delete_practice, p.name), Modifier.size(20.dp))
-                    }
-                }
             }
         }
     }

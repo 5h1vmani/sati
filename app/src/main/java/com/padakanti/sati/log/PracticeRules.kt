@@ -51,19 +51,23 @@ object PracticeRules {
     fun nextDue(practice: Practice, from: Long): Long = nextDue(practice.everyDays, practice.scheduleStart, from)
 
     /**
-     * Moves the practice with [id] one place up or down in [ordered], which is in position order.
+     * Moves the practice with [id] to place [index] in [ordered], which is in position order.
      * Returns the practices whose position changed, with the new positions, or an empty list when
-     * the practice is at the end it would move past. Positions become 0, 1, 2 and so on, so
-     * gaps or equal positions from earlier edits cannot stop a move.
+     * nothing moves. Positions become 0, 1, 2 and so on, so gaps or equal positions from earlier
+     * edits cannot stop a move.
      */
+    fun moveTo(ordered: List<Practice>, id: String, index: Int): List<Practice> {
+        val from = ordered.indexOfFirst { it.id == id }
+        if (from < 0 || index !in ordered.indices) return emptyList()
+        val order = ordered.toMutableList()
+        order.add(index, order.removeAt(from))
+        return order.mapIndexedNotNull { i, p -> if (p.position != i) p.copy(position = i) else null }
+    }
+
+    /** Moves the practice with [id] one place up or down. Nothing changes at the end it would move past. */
     fun moved(ordered: List<Practice>, id: String, up: Boolean): List<Practice> {
         val from = ordered.indexOfFirst { it.id == id }
-        val to = if (up) from - 1 else from + 1
-        if (from < 0 || to !in ordered.indices) return emptyList()
-        val order = ordered.toMutableList()
-        order[from] = ordered[to]
-        order[to] = ordered[from]
-        return order.mapIndexedNotNull { i, p -> if (p.position != i) p.copy(position = i) else null }
+        return moveTo(ordered, id, if (up) from - 1 else from + 1)
     }
 
     /** The largest target a practice measured as [measure] may have. */

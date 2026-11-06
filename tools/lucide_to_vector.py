@@ -18,6 +18,13 @@ ICONS = [
     "sunrise", "music", "volume-2", "volume-x", "triangle-alert",
     "battery", "alarm-clock", "snowflake", "vibrate", "moon",
     "timer", "plus", "pencil", "trash-2", "x",
+    # The Log tab.
+    "notebook-pen", "circle-check", "circle", "archive", "archive-restore",
+    "download", "upload", "arrow-left", "calendar", "list-checks",
+    # Marking a done practice as not done.
+    "circle-x",
+    # Reorder and repeat controls.
+    "minus", "arrow-up", "arrow-down",
 ]
 OUT = Path(__file__).resolve().parent.parent / "app/src/main/res/drawable"
 NS = "{http://www.w3.org/2000/svg}"

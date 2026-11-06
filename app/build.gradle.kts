@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.androidx.room)
 }
 
 // Release signing reads the key's path and password from the environment.
@@ -20,8 +22,8 @@ android {
         // The phone is a Pixel 3 XL on Android 12, which is API 31.
         minSdk = 31
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = 4
+        versionName = "1.3.0"
     }
 
     signingConfigs {
@@ -42,6 +44,10 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             if (signRelease) signingConfig = signingConfigs.getByName("release")
+            // AGP writes the git commit into the APK. A build from a tarball or
+            // before the release commit then differs, and F-Droid cannot
+            // reproduce it. Found in the 1.2.0 rebuild check.
+            vcsInfo.include = false
         }
     }
 
@@ -61,10 +67,19 @@ android {
     }
 }
 
+// Room writes each database version's schema here. The files are committed,
+// so a later change to the tables can be checked against the old one.
+room {
+    schemaDirectory("$projectDir/schemas")
+}
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.room.runtime)
+    ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
+    testImplementation(libs.org.json)
 }

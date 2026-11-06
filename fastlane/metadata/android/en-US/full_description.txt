@@ -21,8 +21,18 @@ Sati rings a bell now and then during your waking hours. Each bell is a moment t
 <li>The hourly bell stays quiet while a sadhana runs.</li>
 </ul>
 
+<b>Practice log</b>
+<ul>
+<li>Keep a list of your practices, counted as a duration, cycles, done, percent or a scale of 1 to 10. Durations and cycles can have a daily target.</li>
+<li>A practice can repeat every 2 to 7 days. Move practices up or down to set their order.</li>
+<li>Today shows each practice and what is left. A done practice takes one tap, and a cross marks any practice not done. Other entries take two taps. A tap on a logged row edits it.</li>
+<li>A focus score from 1 to 10 is optional. Turn it on or off for each practice.</li>
+<li>Add entries for past days, so old paper records can be typed in.</li>
+<li>Export the log and your sadhanas to one file, and import it back. A spreadsheet of old records can be imported too.</li>
+</ul>
+
 <b>Calm by design</b>
-The bell needs no taps. It has no streaks and no statistics. The only notification is the countdown of a running sadhana. It keeps working after a restart, and it uses almost no battery.
+The bell needs no taps. The app has no streaks and no statistics. The only notification is the countdown of a running sadhana. It keeps working after a restart, and it uses almost no battery.
 
 <b>Private</b>
 Sati has no internet permission. It collects nothing and sends nothing.

@@ -60,8 +60,15 @@ internal fun SectionCard(@DrawableRes icon: Int, title: String, content: @Compos
     }
 }
 
+/** A note with an icon. With [actionLabel], it also has a button that runs [onAction]. */
 @Composable
-internal fun Notice(@DrawableRes icon: Int, text: String, warning: Boolean = false) {
+internal fun Notice(
+    @DrawableRes icon: Int,
+    text: String,
+    warning: Boolean = false,
+    actionLabel: String? = null,
+    onAction: () -> Unit = {},
+) {
     val colors = MaterialTheme.colorScheme
     Card(
         Modifier.fillMaxWidth(),
@@ -73,7 +80,11 @@ internal fun Notice(@DrawableRes icon: Int, text: String, warning: Boolean = fal
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(icon), null, Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
-            Text(text, style = MaterialTheme.typography.bodyMedium)
+            Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f, fill = false))
+            if (actionLabel != null) {
+                Spacer(Modifier.width(8.dp))
+                Button(onClick = onAction) { Text(actionLabel) }
+            }
         }
     }
 }

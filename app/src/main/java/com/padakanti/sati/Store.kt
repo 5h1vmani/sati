@@ -76,6 +76,15 @@ class Store(context: Context) {
         get() = prefs.getString("sadhanas", null)?.let(SadhanaJson::decodeList) ?: Sadhana.STARTERS
         set(v) = prefs.edit().putString("sadhanas", SadhanaJson.encodeList(v)).apply()
 
+    /**
+     * Saves the sadhanas and waits until they are on disk. Slow, so call it
+     * off the main thread. The import uses it, so the sadhanas it merged are
+     * not lost if the process ends right after.
+     */
+    fun saveSadhanasNow(v: List<Sadhana>) {
+        prefs.edit().putString("sadhanas", SadhanaJson.encodeList(v)).commit()
+    }
+
     /** The sadhana in progress, or null. */
     var session: Session?
         get() = prefs.getString("session", null)?.let(SadhanaJson::decodeSession)
@@ -85,6 +94,11 @@ class Store(context: Context) {
     var summary: Summary?
         get() = prefs.getString("summary", null)?.let(SadhanaJson::decodeSummary)
         set(v) = prefs.edit().putString("summary", v?.let(SadhanaJson::encodeSummary)).apply()
+
+    /** Epoch milliseconds of the last practice log export. 0 means never. */
+    var lastLogExport: Long
+        get() = prefs.getLong("lastLogExport", 0)
+        set(v) = prefs.edit().putLong("lastLogExport", v).apply()
 
     /** True once the app has asked to show notifications, on the first sadhana. */
     var askedNotifications: Boolean

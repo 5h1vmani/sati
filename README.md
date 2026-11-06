@@ -29,6 +29,15 @@ Sadhana is a timer for a timed practice, such as breathing exercises, chanting o
 - A lock-screen countdown to the next bell, with a Pause button.
 - The hourly bell stays quiet while a sadhana runs.
 
+The practice log records every practice, not only the timed ones.
+
+- Keep a list of practices, each counted as a duration (minutes and seconds), cycles, done, percent or a scale of 1 to 10. Durations and cycles can have a daily target. Move practices up and down, or let one repeat every 2 to 7 days.
+- Today shows each practice and its progress. A done practice takes one tap, and a cross button marks any due practice not done. Other entries take two taps. A tap on a logged row edits its entry.
+- A focus score from 1 to 10 is optional for each practice. A switch in the practice turns it on or off.
+- Add entries for past days, so paper records can be typed in. Any entry can be edited or deleted, with Undo.
+- Export the log and the saved sadhanas to one ZIP file, and import it back. Import also reads a hand-made CSV with the columns date, practice, value and focus in percent.
+- The log tab reminds you to export after 30 days, because the export is the only backup.
+
 Sati has no internet permission. It collects nothing.
 
 ## Install
@@ -70,10 +79,13 @@ This builds an unsigned release APK, which is how F-Droid builds it. The maintai
 - `Alarms.kt` keeps one alarm per slot: the next hourly bell, and the next sadhana bell.
 - `PhoneState.kt` reads Do Not Disturb, the ringer mode and the volumes. `Ringer.kt` plays the bell or vibrates.
 - `Notifier.kt` shows the sadhana countdown on the lock screen.
-- `ui/` holds the Bell tab, the Sadhana tab, the sadhana editor and the theme.
+- `log/` holds the practice log. `LogDb.kt` is the Room database. `LogController.kt` is the one place that writes it. The day rule, Today, the CSV and ZIP formats and the import rules have no Android code and are unit-tested.
+- `SadhanaCheck.kt` decides whether a sadhana is safe to run and valid to save or import.
+- `ui/` holds the Bell, Sadhana and Log tabs, the editors and the theme.
 - `tools/lucide_to_vector.py` converts Lucide icons into Android vector drawables.
 - `tools/contrast.py` checks that every colour pair in the theme meets WCAG AA contrast.
 - `tools/release.sh` builds and signs a release APK.
+- `tools/repro_check.sh` checks that the release build is reproducible.
 - `docs/ROADMAP.md` holds the plan for the next versions.
 
 ## How it is made

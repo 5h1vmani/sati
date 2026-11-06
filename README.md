@@ -8,6 +8,11 @@ Sati is an Android app that rings a bell now and then during your waking hours. 
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/6.png" width="180" alt="The Sadhana tab: saved sadhanas with Start buttons, and the sadhana bell settings">
   <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/8.png" width="180" alt="The sadhana editor: a name, two 30-minute stages with labels, and a settling time">
 </p>
+<p>
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/9.png" width="180" alt="The Log tab: a summary card with 3 of 17 done, and practices in short rows with their progress">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/10.png" width="180" alt="Logging a practice: minutes and seconds fields, focus buttons from 1 to 10, and a Not done button">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/11.png" width="180" alt="Manage practices: each practice with its measure, target and repeat schedule, and a handle to drag it">
+</p>
 
 ## Features
 

@@ -3,6 +3,11 @@
     <string name="app_name">Sati</string>
     <string name="tile_label">Sati</string>
 
+    <!-- The short notification Android may show while a bell rings. -->
+    <string name="bell_channel_name">Bell</string>
+    <string name="bell_channel_description">Shows for a moment while a bell rings. Android needs it so the bell can sound while Sati is closed.</string>
+    <string name="bell_ringing">Bell ringing</string>
+
     <!-- Practice log. Whole sentences, with plural forms wherever a number appears. -->
     <string name="tab_log">Log</string>
     <string name="log_today">Today</string>

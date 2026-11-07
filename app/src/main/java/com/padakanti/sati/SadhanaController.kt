@@ -17,7 +17,7 @@ object SadhanaController {
         var session = Session(sadhana, System.currentTimeMillis())
         // With no settling time, the start bell rings at once instead of through an alarm.
         if (sadhana.settleSec == 0) {
-            Ringer.ringSadhana(context.applicationContext, Strike.Start, sadhana.vibrateOnly) {}
+            BellService.ringSadhana(context.applicationContext, Strike.Start, sadhana.vibrateOnly) {}
             session = session.copy(nextCue = 1)
         }
         store.session = session
@@ -51,7 +51,10 @@ object SadhanaController {
         finish(context, s, completed = false)
     }
 
-    /** The sadhana alarm fired. Rings the due bell and sets the next one. [done] runs when the bell ends. */
+    /**
+     * The sadhana alarm fired. Rings the due bell and sets the next one. [done] runs once the
+     * bell service has the bell, or when the bell ends if it rings without the service.
+     */
     fun onAlarm(context: Context, done: () -> Unit) {
         val store = Store(context)
         val s = store.session ?: return done()
@@ -69,7 +72,7 @@ object SadhanaController {
             store.session = next
             schedule(context, next)
         }
-        Ringer.ringSadhana(context, cue.strike, s.sadhana.vibrateOnly, done)
+        BellService.ringSadhana(context, cue.strike, s.sadhana.vibrateOnly, done)
     }
 
     /**

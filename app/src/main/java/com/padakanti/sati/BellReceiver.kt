@@ -21,6 +21,6 @@ class BellReceiver : BroadcastReceiver() {
 
         if (!ring) return
         val pending = goAsync()
-        Ringer.ringBell(context.applicationContext) { pending.finish() }
+        BellService.ringBell(context.applicationContext) { pending.finish() }
     }
 }

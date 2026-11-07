@@ -39,8 +39,6 @@ Every text in the repo follows one writing rule. This covers code comments, docu
 2. Make one topic per pull request.
 3. CI must pass.
 
-The maintainer aims to reply within one week.
-
 ## Changes written with AI tools
 
 Contributions written with AI tools are welcome. The contributor must:

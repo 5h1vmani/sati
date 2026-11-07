@@ -30,9 +30,10 @@ The manifest also has a `<queries>` entry for the `AUTO_REVOKE_PERMISSIONS` acti
 
 ## Receivers
 
-A receiver is a part of the app that Android calls when an event happens. None of Sati's receivers is exported, so no other app can send to them. All four are `directBootAware`. This means they can run after a restart, before the first unlock.
+A receiver is a part of the app that Android calls when an event happens. None of Sati's receivers is exported, so no other app can send to them. All five are `directBootAware`. This means they can run after a restart, before the first unlock.
 
 - `BellReceiver` receives the alarm for the hourly bell. It rings the bell and sets the next alarm.
+- `TestBellReceiver` receives the alarm for the test bell, about 10 seconds after the user taps "Test bell". It rings that bell like the hourly bell and sets no next alarm.
 - `SadhanaReceiver` receives the alarm for a sadhana bell and rings the bell that is due.
 - `SadhanaActionReceiver` receives the Pause and Resume buttons on the sadhana notification.
 - `RescheduleReceiver` has an intent filter for these system events: `LOCKED_BOOT_COMPLETED`, `BOOT_COMPLETED`, `MY_PACKAGE_REPLACED`, `TIME_SET`, `TIMEZONE_CHANGED` and `SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED`. Android clears alarms on restart, and a clock or time zone change makes a set alarm wrong. On each event it sets the next bell and the next sadhana bell again.

@@ -10,12 +10,6 @@ Report security problems privately through [GitHub private vulnerability reporti
 
 Please include the Sati version, the Android version and the steps that show the problem.
 
-## What happens next
-
-- The maintainer aims to reply within one week.
-- A confirmed problem is fixed in the next release. The release notes describe the fix.
-- You are credited in the release notes, unless you ask not to be.
-
 ## What counts as a security problem
 
 Sati does not ask for the INTERNET permission, so it cannot send data over the network. Security problems are still possible. Some examples follow.

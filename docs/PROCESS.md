@@ -8,8 +8,7 @@ The maintainer, Shiv Padakanti, makes every decision about the app.
 
 - He decides what Sati does and what it does not do. Each decision is written down with its reason in [DECISIONS.md](DECISIONS.md). The date is there too, where it was recorded.
 - He plans each version in the [roadmap](ROADMAP.md) before work starts.
-- He reviews each change and merges it through a pull request.
-- He tests every release on a real phone before it is published.
+- He merges each change through a pull request.
 - He signs every release with a key that is kept outside the repo.
 
 Claude writes the code, the tests and most of the text. Every commit that Claude wrote says so in a `Co-Authored-By` line. You can check this with `git log`.
@@ -36,7 +35,9 @@ Plans and larger changes get an audit before they ship. An audit is a separate r
 
 ## What is not automated
 
-Some checks are done only by hand. Bells, alarms, notifications and the lock screen depend on the phone, so the maintainer tests them on a real phone. The repo has no instrumented tests yet. These are tests that run on a phone or an emulator.
+Instrumented tests run on an Android emulator, not in CI. An instrumented test is a test that runs inside Android itself. `app/src/androidTest` holds `MigrationTest`, which checks the database migrations. `tools/emulator_check.sh` runs these tests on Android 12, 16 and 17 emulators.
+
+Bells, alarms, notifications and the lock screen have no automated tests. The Bell tab has a "Test bell" button, which rings one bell about 10 seconds after a tap.
 
 ## Why this page exists
 

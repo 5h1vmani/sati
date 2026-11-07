@@ -26,7 +26,7 @@ The manifest sets `android:allowBackup="false"`, so Android does not back up Sat
 
 ## Analytics and network libraries
 
-`app/build.gradle.kts` and `gradle/libs.versions.toml` list no analytics library, no crash reporting library and no network library. The libraries are Compose (activity, UI, Material 3), Room, and org.json for tests. The Room compiler runs through KSP.
+`app/build.gradle.kts` and `gradle/libs.versions.toml` list no analytics library, no crash reporting library and no network library. The libraries are Compose (activity, UI, Material 3), Room, and org.json for tests. The Room compiler runs through KSP. The instrumented tests also use AndroidX Test, room-testing and kotlinx-serialization.
 
 ## Uninstalling
 

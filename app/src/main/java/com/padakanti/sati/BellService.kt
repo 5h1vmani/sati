@@ -3,12 +3,14 @@ package com.padakanti.sati
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 
 /**
@@ -28,6 +30,9 @@ class BellService : Service() {
     /** Bells still ringing. The service stops when this reaches 0. */
     private var ringing = 0
 
+    /** The newest start. Stopping with it does nothing while a newer bell is on its way. */
+    private var lastStartId = 0
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -35,16 +40,16 @@ class BellService : Service() {
         try {
             goForeground()
         } catch (e: Exception) {
-            // The bell still rings. On Android 17 its sound may then be muted, but vibration still works.
+            // Not expected, because Sati holds an exact-alarm permission on every version.
+            // If it happens, Android may end the app shortly. The bell still tries to ring until then.
             Log.w(TAG, "Could not start the foreground service", e)
         }
+        lastStartId = startId
         ringing++
         val done = {
             ringing--
-            if (ringing <= 0) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
-            }
+            // Ends the service and removes its notification, unless another bell started meanwhile.
+            if (ringing <= 0) stopSelf(lastStartId)
         }
         val app = applicationContext
         when (intent?.getStringExtra(EXTRA_KIND)) {
@@ -77,7 +82,7 @@ class BellService : Service() {
         val notification = Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.lucide_bell)
             .setContentTitle(getString(R.string.bell_ringing))
-            .setContentIntent(Alarms.openApp(this))
+            .setContentIntent(openApp())
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .build()
         if (Build.VERSION.SDK_INT >= 34) {
@@ -87,8 +92,21 @@ class BellService : Service() {
         }
     }
 
+    /** Opens the app on its usual tab. A request code of its own keeps the sadhana notification's tap target intact. */
+    private fun openApp(): PendingIntent = PendingIntent.getActivity(
+        this, REQUEST_OPEN,
+        Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
+
     companion object {
         private const val TAG = "Sati"
+
+        /** Keeps the phone awake from the alarm until the service takes its own wake lock in [Ringer]. */
+        private const val START_WAKE_MS = 10_000L
+
+        /** Different from [Alarms.openApp]'s request code 0. */
+        private const val REQUEST_OPEN = 1
         private const val CHANNEL = "bell"
 
         /** Different from the sadhana notification's ID, so neither replaces the other. */
@@ -102,6 +120,8 @@ class BellService : Service() {
 
         /** Rings the hourly bell. [done] runs when the caller may stop waiting. */
         fun ringBell(context: Context, done: () -> Unit) {
+            // A quiet bell needs no service.
+            if (PhoneState.bellAction(context) == BellAction.Quiet) return done()
             val intent = Intent(context, BellService::class.java).putExtra(EXTRA_KIND, KIND_HOURLY)
             if (start(context, intent)) done() else Ringer.ringBell(context, done)
         }
@@ -120,11 +140,17 @@ class BellService : Service() {
          * the bell itself, as Sati 1.3.0 did. A bell muted on Android 17 is
          * better than no bell and no vibration.
          */
-        private fun start(context: Context, intent: Intent): Boolean = try {
-            context.startForegroundService(intent) != null
-        } catch (e: Exception) {
-            Log.w(TAG, "Android refused the bell service; ringing without it", e)
-            false
+        private fun start(context: Context, intent: Intent): Boolean {
+            // The alarm keeps the phone awake only until the receiver returns.
+            val wake = context.getSystemService(PowerManager::class.java)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Sati:start")
+            wake.acquire(START_WAKE_MS)
+            return try {
+                context.startForegroundService(intent) != null
+            } catch (e: Exception) {
+                Log.w(TAG, "Android refused the bell service; ringing without it", e)
+                false
+            }.also { started -> if (!started && wake.isHeld) wake.release() }
         }
     }
 }

@@ -51,7 +51,10 @@ object SadhanaController {
         finish(context, s, completed = false)
     }
 
-    /** The sadhana alarm fired. Rings the due bell and sets the next one. [done] runs when the bell ends. */
+    /**
+     * The sadhana alarm fired. Rings the due bell and sets the next one. [done] runs once the
+     * bell service has the bell, or when the bell ends if it rings without the service.
+     */
     fun onAlarm(context: Context, done: () -> Unit) {
         val store = Store(context)
         val s = store.session ?: return done()

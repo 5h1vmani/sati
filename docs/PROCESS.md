@@ -1,0 +1,44 @@
+# How Sati is made
+
+Sati's code is written with Claude, an AI coding tool made by Anthropic. This page explains who decides what, and which checks stand between the code and your phone. Most of the checks below are public, and you can run them yourself.
+
+## Who does what
+
+The maintainer, Shiv Padakanti, makes every decision about the app.
+
+- He decides what Sati does and what it does not do. Each decision is written down with its reason in [DECISIONS.md](DECISIONS.md). The date is there too, where it was recorded.
+- He plans each version in the [roadmap](ROADMAP.md) before work starts.
+- He merges each change through a pull request.
+- He signs every release with a key that is kept outside the repo.
+
+Claude writes the code, the tests and most of the text. Every commit that Claude wrote says so in a `Co-Authored-By` line. You can check this with `git log`.
+
+## Checks on every change
+
+GitHub Actions runs these checks on every push and every pull request. A pull request cannot be merged into `main` until they pass.
+
+- **Unit tests.** The app logic lives in files with no Android code, so it can be tested on any computer. These files decide when a bell rings, whether it plays, vibrates or stays quiet, and how the log counts a day. They have unit tests in `app/src/test`.
+- **Android lint.** It finds common Android mistakes in the code and the resources.
+- **Colour contrast.** `tools/contrast.py` checks that every colour pair in the theme meets WCAG AA. WCAG is the main web standard for accessibility.
+- **Permissions.** `tools/check_permissions.py` checks that [PERMISSIONS.md](PERMISSIONS.md) explains every permission the app asks for. It also checks that no new component is exported to other apps.
+- **Release build.** CI builds an unsigned release APK.
+
+## Audits
+
+Plans and larger changes get an audit before they ship. An audit is a separate review in a fresh context, with numbered questions and file and line evidence for each answer. The git history shows the results. For example, commit `04192d5` fixes four problems that an audit found in the bell service.
+
+## Checks on every release
+
+- **Reproducible build.** Anyone can rebuild a release from its git tag and get the same APK. The only difference is the signature. `tools/repro_check.sh` checks this before each release.
+- **Public verification.** When a release is published, GitHub Actions rebuilds it from its tag. It then checks that the signature from the published APK fits the new build. The result is public on the repo's Actions page.
+- **Supply chain.** OpenSSF Scorecard checks the repo's security setup every week. Dependabot proposes dependency updates once a month.
+
+## What is not automated
+
+Instrumented tests run on an Android emulator, not in CI. An instrumented test is a test that runs inside Android itself. `app/src/androidTest` holds `MigrationTest`, which checks the database migrations. `tools/emulator_check.sh` runs these tests on Android 12, 16 and 17 emulators.
+
+Bells, alarms, notifications and the lock screen have no automated tests. The Bell tab has a "Test bell" button, which rings one bell about 10 seconds after a tap.
+
+## Why this page exists
+
+Some app stores and users are wary of code written by AI. That concern is fair. The answer here is evidence: written decisions, tests, audits and builds that anyone can check.

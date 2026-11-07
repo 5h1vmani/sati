@@ -1,0 +1,73 @@
+# Rebuilds a published release from its tag and checks that the signature
+# from the published APK fits the new unsigned build. This is the check
+# F-Droid runs. A pass means the APK on the release page was built from the
+# source code at that tag.
+#
+# It runs when a release is published, on demand, and on pull requests that
+# change this file. A pull request checks the latest release.
+name: Verify release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to verify, for example v1.3.0
+        required: true
+  pull_request:
+    paths:
+      - .github/workflows/verify-release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Choose the tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          tag="${RELEASE_TAG:-$INPUT_TAG}"
+          if [ -z "$tag" ]; then
+            tag=$(gh release view --repo "$REPO" --json tagName -q .tagName)
+          fi
+          echo "Verifying $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6
+
+      - name: Build the unsigned release APK
+        run: ./gradlew --no-configuration-cache assembleRelease
+
+      - name: Download the signed APK from the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: gh release download "$TAG" --repo "$REPO" --pattern '*.apk' --dir signed
+
+      - name: Check that the signature fits the new build
+        run: |
+          pip install apksigcopier==1.1.1
+          build_tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          export PATH="$build_tools:$PATH"
+          apksigcopier compare signed/*.apk \
+            --unsigned app/build/outputs/apk/release/app-release-unsigned.apk
+          echo "The published APK matches a fresh build of its tag."

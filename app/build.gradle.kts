@@ -22,8 +22,8 @@ android {
         // The phone is a Pixel 3 XL on Android 12, which is API 31.
         minSdk = 31
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.3.0"
+        versionCode = 5
+        versionName = "1.3.1"
     }
 
     signingConfigs {

@@ -1,0 +1,1 @@
+Fixed: bells now ring on Android 17. Android 17 mutes sound from apps in the background, so each bell now rings in a short foreground service. A silent "Bell ringing" notification can appear for a moment while a bell rings. Fixed: with large text, the waking hours move under their label instead of squeezing it.

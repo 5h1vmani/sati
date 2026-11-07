@@ -17,7 +17,7 @@ object SadhanaController {
         var session = Session(sadhana, System.currentTimeMillis())
         // With no settling time, the start bell rings at once instead of through an alarm.
         if (sadhana.settleSec == 0) {
-            Ringer.ringSadhana(context.applicationContext, Strike.Start, sadhana.vibrateOnly) {}
+            BellService.ringSadhana(context.applicationContext, Strike.Start, sadhana.vibrateOnly) {}
             session = session.copy(nextCue = 1)
         }
         store.session = session
@@ -69,7 +69,7 @@ object SadhanaController {
             store.session = next
             schedule(context, next)
         }
-        Ringer.ringSadhana(context, cue.strike, s.sadhana.vibrateOnly, done)
+        BellService.ringSadhana(context, cue.strike, s.sadhana.vibrateOnly, done)
     }
 
     /**

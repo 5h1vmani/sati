@@ -356,14 +356,20 @@ private fun HoursCard(ui: SatiUi, onEdit: (HourField) -> Unit) {
 private fun HoursRow(title: String, sub: String, hours: Hours, onStart: () -> Unit, onEnd: () -> Unit) {
     val is24 = DateFormat.is24HourFormat(LocalContext.current)
     val locale = LocalConfiguration.current.locales[0]
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
+    // With large text the times move under the label, instead of squeezing it into a narrow column.
+    FlowRow(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.padding(end = 12.dp)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)
             Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        TimePill(TimeText.clock(hours.startMin, is24, locale), "$title start", onStart)
-        Text("–", Modifier.padding(horizontal = 6.dp))
-        TimePill(TimeText.clock(hours.endMin, is24, locale), "$title end", onEnd)
+        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            TimePill(TimeText.clock(hours.startMin, is24, locale), "$title start", onStart)
+            Text("–", Modifier.padding(horizontal = 6.dp))
+            TimePill(TimeText.clock(hours.endMin, is24, locale), "$title end", onEnd)
+        }
     }
 }
 

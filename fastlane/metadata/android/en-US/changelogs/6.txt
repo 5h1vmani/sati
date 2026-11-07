@@ -1,0 +1,1 @@
+New: a Test bell button in the Bell tab. It rings a real bell 10 seconds later, so you can check what your phone does with it. If the bell does not come, Sati says the phone may be stopping it in the background. Fixed: on silent, the hourly bell now vibrates for 1 second, long enough to feel.

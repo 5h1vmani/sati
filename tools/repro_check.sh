@@ -12,9 +12,17 @@
 # Usage: tools/repro_check.sh [signed.apk]
 set -eu
 
+# apksigcopier lives in its own Python environment, and apksigner in the
+# Android build tools. Both are put on the PATH here, so no session has to.
+# Set up the environment once with:
+#   python3 -m venv ~/.local/share/sati-tools && ~/.local/share/sati-tools/bin/pip install apksigcopier
+
 root=$(cd "$(dirname "$0")/.." && pwd)
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
+sdk=$(sed -n 's/^sdk.dir=//p' "$root/local.properties")
+build_tools=$(ls -d "$sdk"/build-tools/* | sort -V | tail -1)
+PATH="$HOME/.local/share/sati-tools/bin:$build_tools:$PATH"
 
 for dir in a b; do
     mkdir -p "$work/$dir"

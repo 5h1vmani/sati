@@ -43,7 +43,7 @@ The practice log records every practice, not only the timed ones.
 - Export the log and the saved sadhanas to one ZIP file, and import it back. Import also reads a hand-made CSV with the columns date, practice, value and focus in percent.
 - The log tab reminds you to export after 30 days, because the export is the only backup.
 
-Sati has no internet permission. It collects nothing.
+Sati has no internet permission. It collects nothing. [PRIVACY.md](docs/PRIVACY.md) says what Sati stores, and [PERMISSIONS.md](docs/PERMISSIONS.md) says why it needs each permission. [EXPORT_FORMAT.md](docs/EXPORT_FORMAT.md) describes the export file, so other tools can read your data.
 
 ## Install
 
@@ -64,6 +64,21 @@ Every release is signed with the same key. Its SHA-256 certificate fingerprint i
 ```
 6C:F8:5B:0E:54:C9:1A:E1:84:64:E9:B3:C9:EB:15:C6:9B:CB:0C:5D:4D:85:CF:F8:2F:AF:CC:E6:68:DC:9D:3C
 ```
+
+## Verify a release
+
+You can check that a release APK was built from the source code at its tag.
+
+GitHub Actions does this for every new release. The [Verify release](https://github.com/5h1vmani/sati/actions/workflows/verify-release.yml) workflow rebuilds the release from its tag. It then checks that the signature from the published APK fits the new build. F-Droid runs the same check.
+
+To check it yourself, you need JDK 21, the Android SDK and [apksigcopier](https://github.com/obfusk/apksigcopier). Replace `v1.3.0` with the release you want to check.
+
+1. Check out the tag with `git checkout v1.3.0`.
+2. Build the unsigned APK with `./gradlew assembleRelease`.
+3. Download the APK from the release page.
+4. Run `apksigcopier compare sati-1.3.0.apk --unsigned app/build/outputs/apk/release/app-release-unsigned.apk`.
+
+The command fails with an error if the APKs do not match.
 
 ## Build
 
@@ -91,11 +106,16 @@ This builds an unsigned release APK, which is how F-Droid builds it. The maintai
 - `tools/contrast.py` checks that every colour pair in the theme meets WCAG AA contrast.
 - `tools/release.sh` builds and signs a release APK.
 - `tools/repro_check.sh` checks that the release build is reproducible.
-- `docs/ROADMAP.md` holds the plan for the next versions.
+- `tools/check_permissions.py` checks that `docs/PERMISSIONS.md` explains every permission in the manifest, and that no new component is exported.
+- `docs/ROADMAP.md` holds the plan for the next versions. `docs/DECISIONS.md` records the decisions and their reasons.
 
 ## How it is made
 
-Sati's code is written with Claude, an AI coding tool made by Anthropic. Every commit says so in a `Co-Authored-By` line. Each release is tested on a real phone before it is published.
+Sati's code is written with Claude, an AI coding tool made by Anthropic. Every commit says so in a `Co-Authored-By` line. Each release is tested on a real phone before it is published. [PROCESS.md](docs/PROCESS.md) explains who decides what, and which checks guard each change and each release.
+
+## Contributing
+
+Bug reports and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Report security problems privately, as [SECURITY.md](SECURITY.md) explains.
 
 ## Credits
 

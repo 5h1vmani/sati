@@ -49,24 +49,7 @@ The timer is for a timed practice, such as breathing exercises, chanting or yoga
 
 ### Decisions made
 
-- **Name.** The timer is called "Sadhana". The two tabs are "Bell" and "Sadhana".
-- **Spelling.** The label is written "Sadhana", with no accent marks, to match "Sati". Decided on 5 November 2026.
-- **Stages.** A sadhana is a list of 1 to 10 stages. Each stage has a length in minutes and an optional label, such as "Breathing". A "Split evenly" button divides a total length into 2, 3 or 4 equal stages.
-- **Strike counts.** The bell sound plays a different number of times for each event. The user can tell what happened without opening their eyes.
-
-  | Event | Strikes |
-  |---|---|
-  | Start | 1 |
-  | Stage change | 2 |
-  | End | 3 |
-
-  Strikes are about 4 seconds apart. All strikes use the chosen bell sound.
-- **Do Not Disturb.** Sadhana bells ring during Do Not Disturb and on silent mode. They play on the alarm channel for this reason.
-- **Volume.** Sadhana bells follow the phone's alarm volume. They have their own volume slider, stored apart from the hourly bell's volume, with a button to test the level. The slider can only go up to the phone's alarm volume. The app never changes the phone's own volume settings.
-- **Zero alarm volume.** If the phone's alarm volume is zero, the app shows a warning before the sadhana starts. During the sadhana, each bell vibrates instead of playing.
-- **Alarms turned off in Do Not Disturb.** Some people block alarms in their Do Not Disturb settings. Then the bells play on the media channel, if Do Not Disturb allows media and the media volume is not zero. If neither can be heard, the Sadhana tab and the running screen show a notice with a button that opens the Do Not Disturb settings. Sati never changes Do Not Disturb itself. Adding Sati as a Do Not Disturb exception would not help, because exceptions cover notifications and the bells are played as sound. Found in the phone test on 5 November 2026, on a phone with alarms blocked in Do Not Disturb.
-- **Phone calls.** During a call, a sadhana bell vibrates instead of playing.
-- **Hourly bell.** The hourly bell is muted while a sadhana runs. It resumes when the sadhana ends.
+This section moved to [docs/DECISIONS.md](DECISIONS.md), which records the decisions for the Sadhana timer.
 
 ### Other features
 
@@ -232,17 +215,7 @@ Analytics come after the log has collected about two months of real entries. The
 
 ## Technical direction
 
-Decided on 5 November 2026.
-
-- **Kotlin only.** Sati has no server, so it has no backend. A Rust core would add a second language, the Android NDK, native libraries for each processor type and a harder reproducible build for F-Droid. Sati does no heavy computation, so Rust would bring no benefit.
-- **Pure logic stays free of Android code.** The timer model, the bell decisions, the time text and the analytics import nothing from `android.*`. This makes them testable on the Mac.
-- **An iOS version, if it comes,** would use Kotlin Multiplatform. The pure logic would move to a shared module. Some work comes with that move:
-  - The pure files use `java.time`, which exists only on the JVM. They would move to kotlinx-datetime.
-  - `SadhanaJson.kt` uses org.json, a JVM library that iOS lacks. It would move to kotlinx.serialization.
-  - Room supports iOS from version 2.7, with its bundled SQLite driver and suspend functions. The log in 1.3.0 uses only those parts, so it can move unchanged.
-  - Compose Multiplatform can share the screens. The screens use Android types such as `Context`, so this needs some changes.
-  - The alarms, sound, notifications, tile and shortcuts would be rewritten for iOS in any case.
-- The project is not converted now, because nobody uses an iOS version yet.
+This section moved to [docs/DECISIONS.md](DECISIONS.md), which records the technical direction.
 
 ## Later ideas
 

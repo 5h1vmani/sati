@@ -3,14 +3,13 @@ package com.padakanti.sati
 /**
  * The vibration of a bell. Pure logic, no Android code, so it is unit tested.
  *
- * Each strike is three firm pulses, about 2 seconds in all, so it can be felt
- * in a pocket. Until 1.3.1 a strike was two pulses of 0.3 seconds. That was
- * too short: Android ran it in full, but it went unnoticed.
+ * Each strike is one vibration of 1 second, so it can be felt in a pocket.
+ * Until 1.3.1 a strike was two pulses of 0.3 seconds, which went unnoticed
+ * even though Android ran it in full. Three pulses of 0.5 seconds felt too
+ * long and unusual, and one of 1.5 seconds still felt too long.
  */
 object Vibration {
-    const val PULSE_MS = 500L
-    const val PULSE_GAP_MS = 300L
-    const val PULSES = 3
+    const val STRIKE_MS = 1_000L
 
     /** The pause between strikes of a sadhana bell. */
     const val STRIKE_GAP_MS = 700L
@@ -23,10 +22,7 @@ object Vibration {
         val timings = mutableListOf(0L)
         repeat(times.coerceAtLeast(1)) { strike ->
             if (strike > 0) timings += STRIKE_GAP_MS
-            repeat(PULSES) { pulse ->
-                if (pulse > 0) timings += PULSE_GAP_MS
-                timings += PULSE_MS
-            }
+            timings += STRIKE_MS
         }
         return timings.toLongArray()
     }

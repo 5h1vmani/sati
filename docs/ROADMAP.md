@@ -257,6 +257,8 @@ Every release follows these steps in order.
 
 1. Unit tests, lint and a release build pass.
 1. `tools/repro_check.sh` passes.
+1. `tools/emulator_check.sh` passes on Android 12, 16 and 17. It refuses to run while a phone is connected, because the test run would remove Sati and its log from that phone.
+1. Every database migration has a test in `MigrationTest` before its PR merges.
 2. The build is tested on a real phone.
 3. The changelog file for the new versionCode is written.
 4. versionCode and versionName are raised.

@@ -57,7 +57,10 @@ import com.padakanti.sati.HourField
 import com.padakanti.sati.Hours
 import com.padakanti.sati.R
 import com.padakanti.sati.Ringer
+import com.padakanti.sati.TestBell
+import com.padakanti.sati.TestOutcome
 import com.padakanti.sati.TimeText
+import java.time.Instant
 import java.time.ZoneId
 import java.util.Date
 
@@ -80,6 +83,7 @@ internal fun BellTab(ui: SatiUi, now: Long, actions: SatiActions) {
     RhythmCard(ui, actions)
     HoursCard(ui) { editing = it }
     SoundCard(ui, actions)
+    TestCard(ui.testBell, actions)
     Text(
         "On silent, Sati vibrates instead. During Do Not Disturb or a call, it stays quiet. The bell " +
             "follows your notification volume. Sounds stop after ${Ringer.MAX_PLAY_MS / 1000} seconds.",
@@ -380,6 +384,47 @@ private fun TimePill(text: String, label: String, onClick: () -> Unit) {
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
         modifier = Modifier.semantics { contentDescription = "$label, $text. Change." },
     ) { Text(text) }
+}
+
+/**
+ * The test bell. It rings through the real alarm path a few seconds after the
+ * tap, so it shows what the hourly bell would do now, and whether the phone
+ * lets Sati's alarms through at all.
+ */
+@Composable
+private fun TestCard(test: TestBell, actions: SatiActions) {
+    val is24 = DateFormat.is24HourFormat(LocalContext.current)
+    val locale = LocalConfiguration.current.locales[0]
+    fun clock(at: Long) = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
+        .let { TimeText.clock(it.hour * 60 + it.minute, is24, locale) }
+
+    SectionCard(R.drawable.lucide_bell, "Test bell") {
+        val (line, warning) = when (test) {
+            TestBell.None ->
+                "Rings like a real bell ${TestBell.DELAY_MS / 1000} seconds after you tap. Lock the phone to try it." to false
+            is TestBell.Waiting -> "The test bell rings in a few seconds. Lock the phone now." to false
+            is TestBell.Done -> "Test at ${clock(test.at)}: " + when (test.outcome) {
+                TestOutcome.Rang -> "it rang."
+                TestOutcome.Vibrated -> "it vibrated, because the phone is silent or the volume is off."
+                TestOutcome.QuietDoNotDisturb -> "it stayed quiet, because Do Not Disturb was on."
+                TestOutcome.QuietCall -> "it stayed quiet, because a call was on."
+            } to false
+            is TestBell.Missed ->
+                "The test bell set for ${clock(test.at)} did not come. The phone may be stopping Sati in the " +
+                    "background. Let Sati run in the background, then test again." to true
+        }
+        Text(
+            line,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = actions::testBell, enabled = test !is TestBell.Waiting) { Text("Test bell") }
+            if (test is TestBell.Missed) {
+                TextButton(onClick = actions::fixBattery) { Text("Background setting") }
+            }
+        }
+    }
 }
 
 @Composable

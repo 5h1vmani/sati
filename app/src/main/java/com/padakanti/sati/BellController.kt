@@ -16,6 +16,16 @@ object BellController {
         Alarms.reschedule(context)
     }
 
+    /** Sets the test bell to ring in [TestBell.DELAY_MS]. The hourly bell's next alarm does not move. */
+    fun testBell(context: Context) {
+        val store = Store(context)
+        val at = System.currentTimeMillis() + TestBell.DELAY_MS
+        store.testOutcome = null
+        store.testFiredAt = 0
+        store.testSetAt = at
+        Alarms.setTest(context, at)
+    }
+
     fun pause(context: Context, hours: Int) {
         Store(context).pausedUntil = System.currentTimeMillis() + hours * 3_600_000L
         Alarms.reschedule(context)

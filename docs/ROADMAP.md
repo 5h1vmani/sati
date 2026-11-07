@@ -298,6 +298,7 @@ Every release follows these steps in order.
 - Android 17 mutes sound from apps in the background unless a foreground service runs. Sati rings every bell in `BellService` for this, from 1.3.1 on.
 - Apps that target Android 17 (API 37) also need a foreground service with "while-in-use" capability. A service started from an alarm usually lacks it.
 - Google waives this only for sound with `USAGE_ALARM` from an app with the exact-alarm permission. The hourly bell uses `USAGE_NOTIFICATION_EVENT`, and sadhana bells can fall back to `USAGE_MEDIA`.
+- On 7 November 2026 an Android 17 emulator logged "would be muted, level: full" even for the sadhana bells with `USAGE_ALARM`. So the waiver does not seem to cover Sati's `USE_EXACT_ALARM`. Today this is only a log line, because Sati targets 36.
 - Before targetSdk moves to 37, test both on an Android 17 emulator with `adb shell cmd audio set-enable-hardening enable`, which applies the API 37 rules to every app.
 
 ### Google developer verification

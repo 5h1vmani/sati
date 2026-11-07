@@ -55,6 +55,12 @@
             android:directBootAware="true"
             android:exported="false" />
 
+        <!-- The test bell from the Bell tab. -->
+        <receiver
+            android:name=".TestBellReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
         <receiver
             android:name=".SadhanaReceiver"
             android:directBootAware="true"

@@ -10,6 +10,7 @@ import com.padakanti.sati.Sadhana
 import com.padakanti.sati.SadhanaBell
 import com.padakanti.sati.Session
 import com.padakanti.sati.Summary
+import com.padakanti.sati.TestBell
 import com.padakanti.sati.log.LogImportState
 import com.padakanti.sati.log.Measure
 
@@ -44,6 +45,7 @@ data class SatiUi(
     /** True while an export or an import runs. */
     val logBusy: Boolean,
     val logImport: LogImportState,
+    val testBell: TestBell,
 )
 
 /** Which bell a test play uses: the hourly bell's channel and volume, or the sadhana's. */
@@ -70,6 +72,7 @@ interface SatiActions {
     fun useDefaultSound()
     fun togglePreview(preview: Preview)
     fun setVolume(percent: Int)
+    fun testBell()
     fun setSadhanaVolume(percent: Int)
     fun fixBattery()
     fun fixExact()

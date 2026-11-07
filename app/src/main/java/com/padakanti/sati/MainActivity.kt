@@ -190,6 +190,7 @@ class MainActivity : ComponentActivity(), SatiActions {
             logLastExport = store.lastLogExport,
             logBusy = Memory.logBusy,
             logImport = Memory.logImport,
+            testBell = TestBell.of(store.testSetAt, store.testFiredAt, store.testOutcome, now),
         )
     }
 
@@ -206,6 +207,8 @@ class MainActivity : ComponentActivity(), SatiActions {
     }
 
     override fun pause(hours: Int) = BellController.pause(this, hours)
+
+    override fun testBell() = BellController.testBell(this)
 
     override fun resume() = BellController.resume(this)
 

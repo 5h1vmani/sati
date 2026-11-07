@@ -20,7 +20,11 @@ object Alarms {
     enum class Slot(val requestCode: Int, val receiver: Class<out BroadcastReceiver>) {
         Bell(0, BellReceiver::class.java),
         Sadhana(1, SadhanaReceiver::class.java),
+        Test(2, TestBellReceiver::class.java),
     }
+
+    /** Sets the test bell. Its own slot, so the hourly bell's alarm stays as it is. */
+    fun setTest(context: Context, at: Long) = setExact(context, Slot.Test, at)
 
     /**
      * Cancels the pending hourly bell and picks a new time. [notBefore] is

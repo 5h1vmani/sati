@@ -134,3 +134,15 @@ Date decided: 5 November 2026
 Decision and reason, as the roadmap gives them:
 
 The project is not converted now, because nobody uses an iOS version yet.
+
+### D-15: The Test bell ships as 1.4.0, and the later plans move one version
+
+Date decided: 7 November 2026
+
+The Test bell button is a new feature, so the release with it is a MINOR release, 1.4.0. It ships now with the 1-second vibration, because the old vibration went unnoticed on a real phone. Waiting for the three planned 1.4.0 features would have held back that fix for weeks. So the timer link, the evening reminder and the launcher shortcuts move to 1.5.0. Analytics move to 1.6.0, and translations move to 1.7.0.
+
+### D-16: A vibrating bell is one vibration of 1 second per strike
+
+Date decided: 7 November 2026
+
+The first pattern was two pulses of 0.3 seconds. Android ran it in full on the Pixel 3 XL, but the maintainer did not feel it. Three pulses of 0.5 seconds felt too long and unusual. One vibration of 1.5 seconds also felt too long. One vibration of 1 second felt right. A sadhana bell keeps its count of strikes, because the count tells the start, a stage change and the end apart.

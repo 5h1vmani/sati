@@ -15,3 +15,6 @@ keystore.properties
 
 # Source audio. Only the chosen bell in app/src/main/res/raw is committed.
 sounds/
+
+# Claude Code session worktrees.
+.claude/worktrees/

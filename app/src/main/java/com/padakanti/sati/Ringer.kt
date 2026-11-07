@@ -36,22 +36,26 @@ object Ringer {
             when (PhoneState.sadhanaBell(context, vibrateOnly)) {
                 SadhanaBell.Alarm -> play(context, Channel.Alarm, volume, strike.times, finish)
                 SadhanaBell.Media -> play(context, Channel.Media, volume, strike.times, finish)
-                SadhanaBell.Vibrate -> {
-                    vibrate(context, strike.times)
-                    finish()
-                }
+                SadhanaBell.Vibrate -> vibrateThen(context, strike.times, finish)
             }
         }
 
     private fun act(context: Context, action: BellAction, channel: Channel, volume: Int, times: Int, finish: () -> Unit) {
         when (action) {
             BellAction.Quiet -> finish()
-            BellAction.Vibrate -> {
-                vibrate(context, times)
-                finish()
-            }
+            BellAction.Vibrate -> vibrateThen(context, times, finish)
             BellAction.Play -> play(context, channel, volume, times, finish)
         }
+    }
+
+    /**
+     * Vibrates, and calls [finish] when the vibration ends. Until then the bell
+     * service and the wake lock stay, so Android does not end the process while
+     * the phone still vibrates.
+     */
+    private fun vibrateThen(context: Context, times: Int, finish: () -> Unit) {
+        vibrate(context, times)
+        Handler(Looper.getMainLooper()).postDelayed({ finish() }, Vibration.pattern(times).sum())
     }
 
     /**
@@ -148,17 +152,12 @@ object Ringer {
     }
 
     /**
-     * Firm pulses that can be felt in a pocket, one pair per strike. Alarm
+     * Firm pulses that can be felt in a pocket, as set in [Vibration]. Alarm
      * usage lets them through silent mode.
      */
     fun vibrate(context: Context, times: Int = 1) {
         val vibrator = context.getSystemService(VibratorManager::class.java).defaultVibrator
-        val pattern = mutableListOf(0L)
-        repeat(times) {
-            if (it > 0) pattern += 700L
-            pattern += listOf(300L, 250L, 300L)
-        }
-        val effect = VibrationEffect.createWaveform(pattern.toLongArray(), -1)
+        val effect = VibrationEffect.createWaveform(Vibration.pattern(times), -1)
         if (Build.VERSION.SDK_INT >= 33) {
             vibrator.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM))
         } else {

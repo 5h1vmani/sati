@@ -260,4 +260,18 @@
         <item quantity="one">Skipped %d sadhana that was already saved, not valid, or over the limit.</item>
         <item quantity="other">Skipped %d sadhanas that were already saved, not valid, or over the limit.</item>
     </plurals>
+
+    <!-- The Test bell card in the Bell tab. %1$s is a clock time. -->
+    <string name="test_bell">Test bell</string>
+    <plurals name="test_bell_idle">
+        <item quantity="one">Rings like a real bell %d second after you tap. Lock the phone to try it.</item>
+        <item quantity="other">Rings like a real bell %d seconds after you tap. Lock the phone to try it.</item>
+    </plurals>
+    <string name="test_bell_waiting">The test bell rings in a few seconds. Lock the phone now.</string>
+    <string name="test_bell_rang">Test at %1$s: it rang.</string>
+    <string name="test_bell_vibrated">Test at %1$s: it vibrated, because the phone is silent or the volume is off.</string>
+    <string name="test_bell_quiet_dnd">Test at %1$s: it stayed quiet, because Do Not Disturb was on.</string>
+    <string name="test_bell_quiet_call">Test at %1$s: it stayed quiet, because a call was on.</string>
+    <string name="test_bell_missed">The test bell set for %1$s did not come. The phone may be stopping Sati in the background. Let Sati run in the background, then test again.</string>
+    <string name="test_bell_background">Background setting</string>
 </resources>

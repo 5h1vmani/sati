@@ -14,6 +14,13 @@ junit = "4.13.2"
 room = "2.8.5"
 ksp = "2.3.13"
 orgJson = "20260814"
+# Instrumented tests only. Newest stable on Google Maven on 7 Nov 2026.
+androidxTestRunner = "1.7.0"
+androidxTestExtJunit = "1.3.0"
+# room-testing reads the schema files with kotlinx-serialization 1.8.1. The app
+# gets 1.7.3 through Compose, and the test APK must use the app's versions.
+# So debug builds get 1.8.1. Release builds keep 1.7.3.
+kotlinxSerialization = "1.8.1"
 
 [libraries]
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -25,6 +32,10 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 # Android's org.json classes are stubs in plain unit tests. This is the real library.
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
+kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core", version.ref = "kotlinxSerialization" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

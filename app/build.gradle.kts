@@ -24,6 +24,8 @@ android {
         targetSdk = 36
         versionCode = 5
         versionName = "1.3.1"
+        // Instrumented tests run only on emulators, through tools/emulator_check.sh.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
@@ -82,4 +84,9 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.org.json)
+    // Only for room-testing. See kotlinxSerialization in libs.versions.toml.
+    debugImplementation(libs.kotlinx.serialization.core)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }

@@ -56,6 +56,21 @@ class Store(context: Context) {
         get() = prefs.getLong("lastRing", 0)
         set(v) = prefs.edit().putLong("lastRing", v).apply()
 
+    /** Epoch milliseconds the test bell is set for. 0 means no test. See [TestBell]. */
+    var testSetAt: Long
+        get() = prefs.getLong("testSetAt", 0)
+        set(v) = prefs.edit().putLong("testSetAt", v).apply()
+
+    /** Epoch milliseconds the test bell last fired. 0 means never. */
+    var testFiredAt: Long
+        get() = prefs.getLong("testFiredAt", 0)
+        set(v) = prefs.edit().putLong("testFiredAt", v).apply()
+
+    /** What the test bell did when it last fired. */
+    var testOutcome: TestOutcome?
+        get() = prefs.getString("testOutcome", null)?.let { name -> TestOutcome.entries.firstOrNull { it.name == name } }
+        set(v) = prefs.edit().putString("testOutcome", v?.name).apply()
+
     /** Display name of the chosen sound. Null means the built-in bell. */
     var soundName: String?
         get() = prefs.getString("soundName", null)

@@ -49,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -398,20 +400,21 @@ private fun TestCard(test: TestBell, actions: SatiActions) {
     fun clock(at: Long) = Instant.ofEpochMilli(at).atZone(ZoneId.systemDefault())
         .let { TimeText.clock(it.hour * 60 + it.minute, is24, locale) }
 
-    SectionCard(R.drawable.lucide_bell, "Test bell") {
+    SectionCard(R.drawable.lucide_bell, stringResource(R.string.test_bell)) {
+        val seconds = (TestBell.DELAY_MS / 1000).toInt()
         val (line, warning) = when (test) {
-            TestBell.None ->
-                "Rings like a real bell ${TestBell.DELAY_MS / 1000} seconds after you tap. Lock the phone to try it." to false
-            is TestBell.Waiting -> "The test bell rings in a few seconds. Lock the phone now." to false
-            is TestBell.Done -> "Test at ${clock(test.at)}: " + when (test.outcome) {
-                TestOutcome.Rang -> "it rang."
-                TestOutcome.Vibrated -> "it vibrated, because the phone is silent or the volume is off."
-                TestOutcome.QuietDoNotDisturb -> "it stayed quiet, because Do Not Disturb was on."
-                TestOutcome.QuietCall -> "it stayed quiet, because a call was on."
-            } to false
-            is TestBell.Missed ->
-                "The test bell set for ${clock(test.at)} did not come. The phone may be stopping Sati in the " +
-                    "background. Let Sati run in the background, then test again." to true
+            TestBell.None -> pluralStringResource(R.plurals.test_bell_idle, seconds, seconds) to false
+            is TestBell.Waiting -> stringResource(R.string.test_bell_waiting) to false
+            is TestBell.Done -> stringResource(
+                when (test.outcome) {
+                    TestOutcome.Rang -> R.string.test_bell_rang
+                    TestOutcome.Vibrated -> R.string.test_bell_vibrated
+                    TestOutcome.QuietDoNotDisturb -> R.string.test_bell_quiet_dnd
+                    TestOutcome.QuietCall -> R.string.test_bell_quiet_call
+                },
+                clock(test.at),
+            ) to false
+            is TestBell.Missed -> stringResource(R.string.test_bell_missed, clock(test.at)) to true
         }
         Text(
             line,
@@ -419,9 +422,11 @@ private fun TestCard(test: TestBell, actions: SatiActions) {
             color = if (warning) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = actions::testBell, enabled = test !is TestBell.Waiting) { Text("Test bell") }
+            OutlinedButton(onClick = actions::testBell, enabled = test !is TestBell.Waiting) {
+                Text(stringResource(R.string.test_bell))
+            }
             if (test is TestBell.Missed) {
-                TextButton(onClick = actions::fixBattery) { Text("Background setting") }
+                TextButton(onClick = actions::fixBattery) { Text(stringResource(R.string.test_bell_background)) }
             }
         }
     }

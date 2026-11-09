@@ -141,12 +141,22 @@ for avd in $avds; do
     fi
 
     # 3. Restart. The hourly bell's alarm must be set before and after.
+    # Android saves that an app was launched some time later, not at once. Android 17 took
+    # over a minute. A restart before that brings Sati back as never launched, and Android
+    # sends no boot broadcast to such an app. So the check waits 2 minutes first.
     if bell_alarm_set; then
+        sleep 120
         a reboot
         sleep 5
         wait_boot
         sleep 10
-        if bell_alarm_set; then boot=pass; else boot="FAIL (alarm missing after restart)"; failed=1; fi
+        if bell_alarm_set; then
+            boot=pass
+        elif a shell dumpsys package com.padakanti.sati | grep -q "stopped=true"; then
+            boot="FAIL (Android lost that Sati was launched, so no boot broadcast came)"; failed=1
+        else
+            boot="FAIL (alarm missing after restart)"; failed=1
+        fi
     else
         boot="FAIL (alarm missing before restart)"; failed=1
     fi

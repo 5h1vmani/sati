@@ -48,7 +48,15 @@ stop_emulator() {
     a emu kill >/dev/null 2>&1 || true
     while "$adb" devices | grep -q "^$serial"; do sleep 1; done
 }
-trap stop_emulator EXIT
+
+# The emulator, the Gradle daemon and the Kotlin compiler daemon use about
+# 3 GB of memory together. All three stop on exit, so other work gets it back.
+clean_up() {
+    stop_emulator
+    ./gradlew --stop >/dev/null 2>&1 || true
+    pkill -f KotlinCompileDaemon || true
+}
+trap clean_up EXIT
 
 # Saves the screen's elements to build/ui.xml.
 dump_ui() {

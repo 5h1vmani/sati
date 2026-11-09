@@ -78,17 +78,15 @@ fun SatiScreen(ui: SatiUi, now: Long, tab: Tab, onTab: (Tab) -> Unit, actions: S
         // The drag of the practices list scrolls this column when it nears an edge, so it needs the scroll state and where the column is.
         val scrollState = rememberScrollState()
         val scrollHost = remember(scrollState) { ScrollHost(scrollState) }
-        with(LocalDensity.current) {
-            scrollHost.topInset = padding.calculateTopPadding().toPx()
-            scrollHost.bottomInset = padding.calculateBottomPadding().toPx()
-        }
         CompositionLocalProvider(LocalScrollHost provides scrollHost) {
+        // The system bar padding sits outside the scroll, so content never scrolls under the status bar.
+        // The column's bounds then exclude the bars, and the drag needs no extra insets.
         Column(
             Modifier
                 .fillMaxSize()
+                .padding(padding)
                 .onGloballyPositioned { scrollHost.bounds = it.boundsInWindow() }
                 .verticalScroll(scrollState)
-                .padding(padding)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

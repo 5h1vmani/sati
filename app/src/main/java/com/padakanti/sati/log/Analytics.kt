@@ -164,6 +164,10 @@ object Analytics {
         return (count - 1 downTo 0).map { current - it * 7L }
     }
 
+    /** True when the practice was active on any day of the week that starts on [start], up to [today]. */
+    fun activeWeek(track: Track, start: Long, today: Long): Boolean =
+        start <= today && (start..minOf(start + 6, today)).any { track.active(it) }
+
     /** The tally of each week that starts on a day in [starts]. */
     fun weekTallies(track: Track, starts: List<Long>, today: Long): List<Tally> =
         starts.map { track.tally(it, it + 6, today) }

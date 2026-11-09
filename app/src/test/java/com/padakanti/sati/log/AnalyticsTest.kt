@@ -601,4 +601,30 @@ class AnalyticsTest {
         assertEquals(DayOfWeek.SATURDAY, Analytics.weekdays(DayOfWeek.SUNDAY).last())
         assertEquals(7, Analytics.weekdays(DayOfWeek.MONDAY).distinct().size)
     }
+
+    // activeWeek: a week counts when the practice was active on any day of it, up to today.
+
+    @Test
+    fun activeWeekIsFalseBeforeThePracticeStarted() {
+        val t = track(prac(created = 20))
+        assertFalse(Analytics.activeWeek(t, 7, 30))
+    }
+
+    @Test
+    fun activeWeekIsTrueWhenItStartsMidweek() {
+        val t = track(prac(created = 20))
+        assertTrue(Analytics.activeWeek(t, 14, 30))
+    }
+
+    @Test
+    fun activeWeekIsFalseWhenArchivedAllWeek() {
+        val t = track(prac(), periods = listOf(period("p", 10, 30)))
+        assertFalse(Analytics.activeWeek(t, 14, 40))
+        assertTrue(Analytics.activeWeek(t, 28, 40))
+    }
+
+    @Test
+    fun activeWeekIsFalseForAWeekAfterToday() {
+        assertFalse(Analytics.activeWeek(track(prac()), 21, 20))
+    }
 }

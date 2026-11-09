@@ -335,10 +335,10 @@ private fun TodayView(
     onAddPractice: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
-    // Today and the 7 days before it, for the week dots.
-    val entries by remember(today) { LogController.entriesBetween(context, today - Analytics.WEEK_DAYS, today) }.collectAsState(initial = emptyList())
-    val periods by remember { LogController.archivePeriods(context) }.collectAsState(initial = emptyList())
-    val firsts by remember { LogController.firstEntries(context) }.collectAsState(initial = emptyList())
+    // Today and the days before it, for the week dots. Null while loading, so no day shows as missed for a moment.
+    val entries by remember(today) { LogController.entriesBetween(context, Analytics.weekFrom(today), today) }.collectAsState(initial = null)
+    val periods by remember { LogController.archivePeriods(context) }.collectAsState(initial = null)
+    val firsts by remember { LogController.firstEntries(context) }.collectAsState(initial = null)
     val total by remember { LogController.entryTotal(context) }.collectAsState(initial = 0)
 
     ImportCard(ui.logImport, actions)
@@ -362,6 +362,8 @@ private fun TodayView(
 
     when {
         practices == null -> Unit
+        // The rows wait for all the data, so they appear once, complete.
+        practices.isNotEmpty() && (entries == null || periods == null || firsts == null) -> Unit
         practices.isEmpty() -> SectionCard(R.drawable.lucide_notebook_pen, stringResource(R.string.log_empty_title)) {
             Text(stringResource(R.string.log_empty_body), style = MaterialTheme.typography.bodyMedium)
             Button(onClick = onAddPractice, modifier = Modifier.fillMaxWidth()) {
@@ -371,13 +373,14 @@ private fun TodayView(
             }
         }
         else -> {
-            val rows = Today.rows(practices, entries, today)
+            val loaded = entries.orEmpty()
+            val rows = Today.rows(practices, loaded, today)
             if (rows.isEmpty()) {
                 Notice(R.drawable.lucide_archive, stringResource(R.string.log_all_archived))
             } else {
-                val firstDays = firsts.associate { it.practiceId to it.day }
+                val firstDays = firsts.orEmpty().associate { it.practiceId to it.day }
                 // Archived practices count for the days they were active, so they are in the week sentences too.
-                val tracks = practices.map { Track(it, firstDays[it.id], periods, entries) }
+                val tracks = practices.map { Track(it, firstDays[it.id], periods.orEmpty(), loaded) }
                 DaySummaryCard(Today.summary(rows), today, weekSentences(Analytics.week(tracks, today)))
                 val byId = tracks.associateBy { it.practice.id }
                 val sections = Today.sections(rows)

@@ -181,7 +181,7 @@ The log shows how the practice went, not only what is left today. Decided on 9 N
 ### 12 weeks
 
 - A switch at the top of the Log tab changes between "Today" and "12 weeks".
-- Each practice has one row of 12 squares, one for each week. The fill of a square shows the share of due days done that week. Each square fills from the bottom. Full is every due day. Two thirds is half or more, and one third is less than half. An empty outline is none. A legend under the rows says this. A week with no due days shows a very small dot.
+- Each practice has one row of 12 squares, one for each week. The fill of a square shows the share of due days done that week. Each square fills from the bottom. Full is every due day. Two thirds is half or more, and one third is less than half. An empty outline is none. A legend under the rows says this. A week with nothing due shows a very small dot. A week when the practice was not active, such as before it started, is blank.
 - At most two sentences sit on top. The first counts the steady practices, such as "Steady on 15 of 18 practices." A practice is steady when it was done on at least 80 percent of its due days in the 12 weeks.
 - The second compares the last 4 weeks with the 8 weeks before. It names the practice whose share fell most, such as "Hatha Yoga dropped in the last 4 weeks." It needs a fall of at least 20 percentage points, and 7 due days in each part. If no practice fell, it names the practice that rose most, by the same rules.
 - A tap on a row opens that practice. Nothing can be logged in this view.
@@ -193,8 +193,8 @@ The button with the calendar icon on a Today row opens the practice. The screen 
 - One sentence for the last 30 days, such as "Done on 26 of 30 days."
 - One sentence for the weakest weekday, such as "Sunday is your weakest day." It appears once the practice has 28 active days in the last 12 weeks. The weekday must be at least 15 percentage points below the practice's average. If there is a tie, there is no sentence.
 - A month calendar with the same marks as the dots. A tap on a past day opens that day's newest entry, or a new entry for that day. The arrows move one month back or forward.
-- For durations and cycles, a bar for each of the last 8 weeks, with the total of each week. One sentence gives this week's total.
-- For practices with focus scores, a line of the weekly average focus over 12 weeks. A week with no score leaves a gap. One sentence gives the average of the last 4 weeks.
+- For durations and cycles, a bar for each of the last 8 weeks, with the total of each week. One sentence gives this week's total. The chart shows only when the 8 weeks have an amount above 0.
+- For practices with focus scores, a line of the weekly average focus over 12 weeks. A week with no score leaves a gap. One sentence gives the average of the last 4 weeks. The chart shows only when the 12 weeks have a score.
 - The entries, newest first, with their notes.
 
 ### Text and design

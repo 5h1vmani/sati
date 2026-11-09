@@ -203,7 +203,11 @@ internal fun WeeksView(today: Long, practices: List<Practice>?, onOpen: (Practic
         WeeksHeader(starts.first())
         live.forEachIndexed { index, track ->
             if (index > 0) RowDivider(16.dp)
-            WeeksRow(track, Analytics.weekTallies(track, starts, today)) { onOpen(track.practice) }
+            WeeksRow(
+                track,
+                Analytics.weekTallies(track, starts, today),
+                starts.map { Analytics.activeWeek(track, it, today) },
+            ) { onOpen(track.practice) }
         }
         RowDivider(16.dp)
         WeeksLegend()
@@ -265,7 +269,7 @@ private fun WeeksHeader(firstStart: Long) {
 }
 
 @Composable
-private fun WeeksRow(track: Track, weeks: List<Tally>, onClick: () -> Unit) {
+private fun WeeksRow(track: Track, weeks: List<Tally>, active: List<Boolean>, onClick: () -> Unit) {
     val total = weeks.fold(Tally.ZERO, Tally::plus)
     val name = track.practice.name
     val description = if (total.due == 0) stringResource(R.string.log_trend_row_none, name)
@@ -282,13 +286,13 @@ private fun WeeksRow(track: Track, weeks: List<Tally>, onClick: () -> Unit) {
     if (largeFont()) {
         Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             nameText(Modifier)
-            WeekSquares(weeks)
+            WeekSquares(weeks, active)
         }
     } else {
         Row(modifier, verticalAlignment = Alignment.CenterVertically) {
             nameText(Modifier.weight(1f))
             Spacer(Modifier.width(12.dp))
-            WeekSquares(weeks)
+            WeekSquares(weeks, active)
         }
     }
 }
@@ -296,12 +300,15 @@ private fun WeeksRow(track: Track, weeks: List<Tally>, onClick: () -> Unit) {
 /**
  * Each square fills from the bottom: fully for every due day done, two thirds for half or more, one third
  * for less than half. None is an empty grey outline. A week with nothing due is a very small dot.
+ * A week when the practice was not active, such as before it started, is blank, as on Today.
  * The height carries the meaning, so colour is not needed to read it.
  */
 @Composable
-private fun WeekSquares(weeks: List<Tally>) {
+private fun WeekSquares(weeks: List<Tally>, active: List<Boolean>) {
     Row(horizontalArrangement = Arrangement.spacedBy(SQUARE_GAP)) {
-        weeks.forEach { Square(Analytics.level(it)) }
+        weeks.forEachIndexed { i, tally ->
+            if (active[i]) Square(Analytics.level(tally)) else Spacer(Modifier.size(SQUARE))
+        }
     }
 }
 
@@ -347,10 +354,14 @@ internal fun PracticeHistory(practice: Practice, entries: List<Entry>, today: Lo
 
     MonthCalendar(track, today, firstDay, onDay)
 
-    if (practice.measure == Measure.Duration || practice.measure == Measure.Count) {
+    // A chart shows only when it has something to draw. The calendar already shows an empty history.
+    val amountStarts = Analytics.weekStarts(today, firstDay, Analytics.AMOUNT_WEEKS)
+    val hasAmount = Analytics.weeklyTotals(track.entries, amountStarts).any { it > 0 }
+    if ((practice.measure == Measure.Duration || practice.measure == Measure.Count) && hasAmount) {
         AmountChart(practice.measure, track.entries, today, firstDay)
     }
-    if (practice.askFocus || track.entries.any { it.focus != null }) {
+    val focusStarts = Analytics.weekStarts(today, firstDay, Analytics.TREND_WEEKS)
+    if (Analytics.weeklyFocus(track.entries, focusStarts).any { it != null }) {
         FocusChart(track.entries, today, firstDay)
     }
 }

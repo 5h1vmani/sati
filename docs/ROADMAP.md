@@ -29,7 +29,7 @@ A release comes out about every 3 to 4 weeks. This gives testers time to try eac
 | — | — | Early Dec 2026 | Repeat the rebuild check on 1.3.0, the first build with a database | Done, 6 Nov 2026, identical |
 | 1.3.1 | 5 | 7 Nov 2026 | Bells ring on Android 17, waking hours fit large text | Done, 7 Nov 2026 |
 | 1.4.0 | 6 | 7 Nov 2026 | Test bell button, a 1-second vibration you can feel | Done, 7 Nov 2026 |
-| 1.5.0 | 7 | Late Nov 2026 | Analytics: the week on Today, 12 weeks, practice history | In progress |
+| 1.5.0 | 7 | 9 Nov 2026 | Analytics: the week on Today, 12 weeks, practice history | Done, 9 Nov 2026 |
 | 1.6.0 | 8 | Late Jan 2027 | Timer link, evening reminder, launcher shortcuts | Planned |
 | — | — | After 30 Jan 2027 | Resubmit to F-Droid | Planned |
 | 1.7.0 | 9 | Feb 2027 | Telugu and Hindi translations | Planned |

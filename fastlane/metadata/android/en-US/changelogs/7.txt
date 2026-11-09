@@ -1,0 +1,1 @@
+New: the Log shows how your practice went. Each practice on Today has dots for the last 7 days, and two short sentences sum up the week. A 12 weeks view shows every practice week by week. A practice's screen has a calendar, a 30-day count, your weakest weekday, weekly totals, and the weekly focus or score.

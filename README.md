@@ -40,6 +40,9 @@ The practice log records every practice, not only the timed ones.
 - Keep a list of practices, each counted as a duration (minutes and seconds), cycles, done, percent or a scale of 1 to 10. Durations and cycles can have a daily target. Drag practices into order, or let one repeat every 2 to 7 days.
 - Today shows each practice and its progress. A done practice takes one tap, and a cross button marks any due practice not done. Other entries take two taps. A tap on a logged row edits its entry.
 - A focus score from 1 to 10 is optional for each practice. A switch in the practice turns it on or off.
+- Each row on Today shows the last 7 days as dots, and two short sentences sum up the week. There is no streak counter.
+- The 12 weeks view shows every practice week by week, and names a practice that dropped or rose in the last 4 weeks.
+- A practice's screen has a month calendar, a 30-day count, the weakest weekday, weekly totals and the weekly focus or score.
 - Add entries for past days, so paper records can be typed in. Any entry can be edited or deleted, with Undo.
 - Export the log and the saved sadhanas to one ZIP file, and import it back. Import also reads a hand-made CSV with the columns date, practice, value and focus in percent.
 - The log tab reminds you to export after 30 days, because the export is the only backup.
@@ -100,7 +103,7 @@ This builds an unsigned release APK, which is how F-Droid builds it. The maintai
 - `Alarms.kt` keeps one alarm per slot: the next hourly bell, and the next sadhana bell.
 - `PhoneState.kt` reads Do Not Disturb, the ringer mode and the volumes. `Ringer.kt` plays the bell or vibrates.
 - `Notifier.kt` shows the sadhana countdown on the lock screen.
-- `log/` holds the practice log. `LogDb.kt` is the Room database. `LogController.kt` is the one place that writes it. The day rule, Today, the CSV and ZIP formats and the import rules have no Android code and are unit-tested.
+- `log/` holds the practice log. `LogDb.kt` is the Room database. `LogController.kt` is the one place that writes it. The day rule, Today, the analytics, the CSV and ZIP formats and the import rules have no Android code and are unit-tested.
 - `SadhanaCheck.kt` decides whether a sadhana is safe to run and valid to save or import.
 - `ui/` holds the Bell, Sadhana and Log tabs, the editors and the theme.
 - `tools/lucide_to_vector.py` converts Lucide icons into Android vector drawables.

@@ -20,6 +20,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -44,9 +47,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.padakanti.sati.R
+import com.padakanti.sati.log.Analytics
 import com.padakanti.sati.log.Entry
 import com.padakanti.sati.log.ExportReminder
 import com.padakanti.sati.log.LogController
@@ -57,6 +62,7 @@ import com.padakanti.sati.log.Practice
 import com.padakanti.sati.log.PracticeRules
 import com.padakanti.sati.log.Today
 import com.padakanti.sati.log.TodayRow
+import com.padakanti.sati.log.Track
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -69,17 +75,21 @@ private const val PAGE = 60
 private const val UNDO_MILLIS = 5_000L
 
 private const val TODAY = "today"
+private const val WEEKS = "weeks"
 private const val PRACTICES = "practices"
 private const val PRACTICE_PREFIX = "practice:"
 
-/** The open entry form: a practice, and the entry when one is edited. Kept across a screen rotation. */
-private class FormTarget(val practiceId: String, val entry: Entry?)
+/**
+ * The open entry form: a practice, and the entry when one is edited. [day] is the day of a new entry
+ * opened from the calendar, or null for today. Kept across a screen rotation.
+ */
+private class FormTarget(val practiceId: String, val entry: Entry?, val day: Long? = null)
 
 private val FormTargetSaver = Saver<FormTarget?, List<Any?>>(
     save = { t ->
         if (t == null) emptyList() else {
             val e = t.entry
-            listOf(t.practiceId, e?.id, e?.day, e?.value, e?.focus, e?.note, e?.createdAt)
+            listOf(t.practiceId, e?.id, e?.day, e?.value, e?.focus, e?.note, e?.createdAt, t.day)
         }
     },
     restore = { l ->
@@ -89,6 +99,7 @@ private val FormTargetSaver = Saver<FormTarget?, List<Any?>>(
             FormTarget(
                 practiceId,
                 id?.let { Entry(it, practiceId, l[2] as Long, l[3] as Int, l[4] as Int?, l[5] as String?, l[6] as Long) },
+                l.getOrNull(7) as Long?,
             )
         }
     },
@@ -163,7 +174,7 @@ internal fun LogTab(
     BackHandler(enabled = view != TODAY) { view = if (opened != null) origin else TODAY }
 
     ScreenHeading(stringResource(R.string.tab_log)) {
-        if (opened == null && view == TODAY) {
+        if (opened == null && (view == TODAY || view == WEEKS)) {
             LogMenu(
                 lastExport = ui.logLastExport,
                 now = now,
@@ -175,15 +186,22 @@ internal fun LogTab(
         }
     }
 
+    // The switch shows only when there is something to look back on.
+    if (opened == null && (view == TODAY || view == WEEKS) && !practices.isNullOrEmpty()) {
+        ModeSwitch(weeks = view == WEEKS, onChange = { view = if (it) WEEKS else TODAY })
+    }
+
     when {
         opened != null -> PracticeView(
             practice = opened,
             today = today,
             onBack = { view = origin },
             onAdd = { form = FormTarget(opened.id, null) },
+            onDay = { day, newest -> form = if (newest != null) FormTarget(opened.id, newest) else FormTarget(opened.id, null, day) },
             onEdit = { form = FormTarget(opened.id, it) },
             onDelete = ::deleteEntry,
         )
+        view == WEEKS -> WeeksView(today, practices) { openPractice(it.id, WEEKS) }
         view == PRACTICES -> PracticesView(
             practices = practices.orEmpty(),
             onBack = { view = TODAY },
@@ -233,6 +251,7 @@ internal fun LogTab(
                 practice = practice,
                 entry = target.entry,
                 today = today,
+                initialDay = target.day,
                 onSubmit = { day, value, focus, note ->
                     val entry = target.entry
                     if (entry == null) LogController.addEntry(context, practice.id, day, value, focus, note).problem
@@ -316,7 +335,10 @@ private fun TodayView(
     onAddPractice: () -> Unit,
 ) {
     val context = LocalContext.current.applicationContext
-    val entries by remember(today) { LogController.entriesOn(context, today) }.collectAsState(initial = emptyList())
+    // Today and the days before it, for the week dots. Null while loading, so no day shows as missed for a moment.
+    val entries by remember(today) { LogController.entriesBetween(context, Analytics.weekFrom(today), today) }.collectAsState(initial = null)
+    val periods by remember { LogController.archivePeriods(context) }.collectAsState(initial = null)
+    val firsts by remember { LogController.firstEntries(context) }.collectAsState(initial = null)
     val total by remember { LogController.entryTotal(context) }.collectAsState(initial = 0)
 
     ImportCard(ui.logImport, actions)
@@ -340,6 +362,8 @@ private fun TodayView(
 
     when {
         practices == null -> Unit
+        // The rows wait for all the data, so they appear once, complete.
+        practices.isNotEmpty() && (entries == null || periods == null || firsts == null) -> Unit
         practices.isEmpty() -> SectionCard(R.drawable.lucide_notebook_pen, stringResource(R.string.log_empty_title)) {
             Text(stringResource(R.string.log_empty_body), style = MaterialTheme.typography.bodyMedium)
             Button(onClick = onAddPractice, modifier = Modifier.fillMaxWidth()) {
@@ -349,15 +373,22 @@ private fun TodayView(
             }
         }
         else -> {
-            val rows = Today.rows(practices, entries, today)
+            val loaded = entries.orEmpty()
+            val rows = Today.rows(practices, loaded, today)
             if (rows.isEmpty()) {
                 Notice(R.drawable.lucide_archive, stringResource(R.string.log_all_archived))
             } else {
-                DaySummaryCard(Today.summary(rows), today)
+                val firstDays = firsts.orEmpty().associate { it.practiceId to it.day }
+                // Archived practices count for the days they were active, so they are in the week sentences too.
+                val tracks = practices.map { Track(it, firstDays[it.id], periods.orEmpty(), loaded) }
+                DaySummaryCard(Today.summary(rows), today, weekSentences(Analytics.week(tracks, today)))
+                val byId = tracks.associateBy { it.practice.id }
                 val sections = Today.sections(rows)
-                TodaySection(null, sections.todo, today, onTap, onNotDone, onEntries)
-                TodaySection(stringResource(R.string.log_section_logged), sections.logged, today, onTap, onNotDone, onEntries)
-                TodaySection(stringResource(R.string.log_not_due_heading), sections.notDue, today, onTap, onNotDone, onEntries)
+                // The weekday letters stand over the first section that has rows.
+                val first = listOf(sections.todo, sections.logged, sections.notDue).indexOfFirst { it.isNotEmpty() }
+                TodaySection(null, sections.todo, today, byId, first == 0, onTap, onNotDone, onEntries)
+                TodaySection(stringResource(R.string.log_section_logged), sections.logged, today, byId, first == 1, onTap, onNotDone, onEntries)
+                TodaySection(stringResource(R.string.log_not_due_heading), sections.notDue, today, byId, first == 2, onTap, onNotDone, onEntries)
             }
         }
     }
@@ -423,22 +454,44 @@ private fun ImportCard(state: LogImportState, actions: SatiActions) {
 // ---------- One practice ----------
 
 @Composable
-internal fun SubHeader(title: String, onBack: () -> Unit) {
+internal fun SubHeader(title: String, onBack: () -> Unit, action: (@Composable () -> Unit)? = null) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) {
             Icon(painterResource(R.drawable.lucide_arrow_left), stringResource(R.string.log_back), Modifier.size(20.dp))
         }
-        Text(title, style = MaterialTheme.typography.titleLarge)
+        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+        action?.invoke()
     }
 }
 
-/** The entries of one practice, newest first. */
+/** Today, or the 12 weeks of every practice. */
+@Composable
+private fun ModeSwitch(weeks: Boolean, onChange: (Boolean) -> Unit) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        SegmentedButton(
+            selected = !weeks,
+            onClick = { onChange(false) },
+            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+        ) { Text(stringResource(R.string.log_mode_today)) }
+        SegmentedButton(
+            selected = weeks,
+            onClick = { onChange(true) },
+            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+        ) { Text(stringResource(R.string.log_mode_weeks)) }
+    }
+}
+
+/**
+ * One practice: its history at the top, then its entries, newest first. A tap on a calendar day calls
+ * [onDay] with that day's newest entry, or null when the day has none.
+ */
 @Composable
 private fun PracticeView(
     practice: Practice,
     today: Long,
     onBack: () -> Unit,
     onAdd: () -> Unit,
+    onDay: (Long, Entry?) -> Unit,
     onEdit: (Entry) -> Unit,
     onDelete: (Entry) -> Unit,
 ) {
@@ -446,13 +499,23 @@ private fun PracticeView(
     val entries by remember(practice.id) { LogController.entriesOf(context, practice.id) }.collectAsState(initial = null)
     var shown by rememberSaveable { mutableIntStateOf(PAGE) }
 
-    SubHeader(practice.name, onBack)
-    Button(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
-        Icon(painterResource(R.drawable.lucide_plus), null, Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.log_add_entry))
+    SubHeader(practice.name, onBack) {
+        IconButton(onClick = onAdd) {
+            Icon(painterResource(R.drawable.lucide_plus), stringResource(R.string.log_add_entry), Modifier.size(24.dp))
+        }
     }
     val list = entries
+    if (list != null) {
+        PracticeHistory(practice, list, today) { day ->
+            onDay(day, list.filter { it.day == day }.maxByOrNull { it.createdAt })
+        }
+        Text(
+            stringResource(R.string.log_entries_heading),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, top = 8.dp).semantics { heading() },
+        )
+    }
     if (list != null && list.isEmpty()) {
         Text(stringResource(R.string.log_no_entries), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(4.dp))
     }

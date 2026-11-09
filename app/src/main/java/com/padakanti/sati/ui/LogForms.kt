@@ -108,6 +108,8 @@ internal fun EntrySheet(
     practice: Practice,
     entry: Entry?,
     today: Long,
+    /** The day of a new entry, such as a day tapped on the calendar. Null means today. */
+    initialDay: Long? = null,
     onSubmit: suspend (day: Long, value: Int?, focus: Int?, note: String) -> EntryProblem?,
     onAddAnother: () -> Unit,
     onDismiss: () -> Unit,
@@ -130,7 +132,7 @@ internal fun EntrySheet(
         isDuration -> DurationText.fieldsOf(start)
         else -> start.toString() to ""
     }
-    var day by rememberSaveable(key) { mutableLongStateOf(entry?.day ?: today) }
+    var day by rememberSaveable(key) { mutableLongStateOf(entry?.day ?: initialDay ?: today) }
     var valueText by rememberSaveable(key) { mutableStateOf(startFields.first) }
     var secondsText by rememberSaveable(key) { mutableStateOf(startFields.second) }
     var ready by rememberSaveable(key) { mutableStateOf(real != null || isDone || isScale || practice.target != null) }

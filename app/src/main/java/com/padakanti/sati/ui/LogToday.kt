@@ -55,8 +55,10 @@ import com.padakanti.sati.log.Measure
 import com.padakanti.sati.log.NextDueWording
 import com.padakanti.sati.log.Practice
 import com.padakanti.sati.log.RowStatus
+import com.padakanti.sati.log.Analytics
 import com.padakanti.sati.log.Today
 import com.padakanti.sati.log.TodayRow
+import com.padakanti.sati.log.Track
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
@@ -104,8 +106,12 @@ private fun summaryDay(today: Long): String {
     return stringResource(R.string.log_summary_day, LogDay.date(today).format(DateTimeFormatter.ofPattern(pattern, locale)))
 }
 
+/**
+ * The day card: today's count and bar, then at most two sentences about the last 7 days.
+ * The two parts are read by a screen reader as two separate items.
+ */
 @Composable
-internal fun DaySummaryCard(summary: DaySummary, today: Long) {
+internal fun DaySummaryCard(summary: DaySummary, today: Long, week: List<String>) {
     val day = summaryDay(today)
     val title = when {
         summary.nothingDue -> stringResource(R.string.log_summary_none)
@@ -124,10 +130,13 @@ internal fun DaySummaryCard(summary: DaySummary, today: Long) {
         if (side.isEmpty()) title else stringResource(R.string.log_summary_description, title, side),
     )
     Card(
-        Modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = description },
+        Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            Modifier.semantics(mergeDescendants = true) { contentDescription = description }.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
             Text(day, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (summary.allLogged) {
@@ -141,6 +150,16 @@ internal fun DaySummaryCard(summary: DaySummary, today: Long) {
                 }
             }
             SummaryBar(summary, Modifier.padding(top = 4.dp))
+        }
+        if (week.isNotEmpty()) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Column(
+                Modifier.semantics(mergeDescendants = true) {}.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(stringResource(R.string.log_last_7_days), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                week.forEach { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            }
         }
     }
 }
@@ -169,12 +188,17 @@ internal fun RowDivider(inset: androidx.compose.ui.unit.Dp) {
     HorizontalDivider(Modifier.padding(start = inset), color = MaterialTheme.colorScheme.outlineVariant)
 }
 
-/** One section of Today. It shows nothing when [rows] is empty. The [label] is small text above the surface. */
+/**
+ * One section of Today. It shows nothing when [rows] is empty. The [label] is small text above the surface.
+ * [tracks] give each row its week dots. With [letters], the weekday letters stand over the dots.
+ */
 @Composable
 internal fun TodaySection(
     label: String?,
     rows: List<TodayRow>,
     today: Long,
+    tracks: Map<String, Track>,
+    letters: Boolean,
     onTap: (TodayRow) -> Unit,
     onNotDone: (TodayRow) -> Unit,
     onEntries: (Practice) -> Unit,
@@ -185,9 +209,10 @@ internal fun TodaySection(
             Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
         }
         ListSurface {
+            if (letters) WeekLetters(today, Modifier.padding(start = ROW_TEXT_INSET, top = 10.dp))
             rows.forEachIndexed { index, row ->
                 if (index > 0) RowDivider(ROW_TEXT_INSET)
-                TodayRowItem(row, today, { onTap(row) }, { onNotDone(row) }, { onEntries(row.practice) })
+                TodayRowItem(row, today, tracks[row.practice.id], { onTap(row) }, { onNotDone(row) }, { onEntries(row.practice) })
             }
         }
     }
@@ -197,7 +222,7 @@ internal fun TodaySection(
 private val ROW_TEXT_INSET = 60.dp
 
 @Composable
-private fun TodayRowItem(row: TodayRow, today: Long, onClick: () -> Unit, onNotDone: () -> Unit, onEntries: () -> Unit) {
+private fun TodayRowItem(row: TodayRow, today: Long, track: Track?, onClick: () -> Unit, onNotDone: () -> Unit, onEntries: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -210,7 +235,26 @@ private fun TodayRowItem(row: TodayRow, today: Long, onClick: () -> Unit, onNotD
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(row.practice.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(secondaryText(row, today), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val secondary = @Composable { m: Modifier ->
+                Text(secondaryText(row, today), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = m)
+            }
+            if (track == null) {
+                secondary(Modifier)
+            } else {
+                // The dots start where the name starts, so they line up from row to row under the weekday letters.
+                val marks = Analytics.weekMarks(track, today)
+                val description = weekDotsDescription(track.tally(Analytics.weekFrom(today), today, today))
+                if (largeFont()) {
+                    secondary(Modifier)
+                    WeekDots(marks, description, Modifier.padding(top = 4.dp))
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        WeekDots(marks, description)
+                        Spacer(Modifier.width(8.dp))
+                        secondary(Modifier.weight(1f))
+                    }
+                }
+            }
         }
         // A practice that is due and has nothing logged has a button to mark it not done in one tap.
         if (row.due && !row.logged) {
@@ -220,7 +264,7 @@ private fun TodayRowItem(row: TodayRow, today: Long, onClick: () -> Unit, onNotD
         }
         // A separate 48 dp button, so the entries are always one tap away, whatever a tap on the row does.
         IconButton(onClick = onEntries) {
-            Icon(painterResource(R.drawable.lucide_list_checks), stringResource(R.string.log_open_entries, row.practice.name), Modifier.size(20.dp))
+            Icon(painterResource(R.drawable.lucide_calendar), stringResource(R.string.log_open_entries, row.practice.name), Modifier.size(20.dp))
         }
     }
 }

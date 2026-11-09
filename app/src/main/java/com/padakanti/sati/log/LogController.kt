@@ -50,6 +50,13 @@ object LogController {
 
     fun entriesOf(context: Context, practiceId: String): Flow<List<Entry>> = dao(context).entriesOf(practiceId)
 
+    /** The entries from [from] to [to], both included. The analytics load only the days they show. */
+    fun entriesBetween(context: Context, from: Long, to: Long): Flow<List<Entry>> = dao(context).entriesBetween(from, to)
+
+    fun archivePeriods(context: Context): Flow<List<ArchivePeriod>> = dao(context).archivePeriods()
+
+    fun firstEntries(context: Context): Flow<List<FirstEntry>> = dao(context).firstEntries()
+
     fun entryTotal(context: Context): Flow<Int> = dao(context).entryTotal()
 
     /** The value of the newest entry of a practice that is not a not-done mark, for [Prefill]. */

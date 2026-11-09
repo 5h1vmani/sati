@@ -35,9 +35,13 @@ Plans and larger changes get an audit before they ship. An audit is a separate r
 
 ## What is not automated
 
-Instrumented tests run on an Android emulator, not in CI. An instrumented test is a test that runs inside Android itself. `app/src/androidTest` holds `MigrationTest`, which checks the database migrations. `tools/emulator_check.sh` runs these tests on Android 12, 16 and 17 emulators.
+`tools/emulator_check.sh` runs on Android 12, 16 and 17 emulators before each release, not in CI. On each one it does three things:
 
-Bells, alarms, notifications and the lock screen have no automated tests. The Bell tab has a "Test bell" button, which rings one bell about 10 seconds after a tap.
+- It runs the instrumented tests. An instrumented test is a test that runs inside Android itself. `app/src/androidTest` holds `MigrationTest`, which checks the database migrations.
+- It turns the hourly bell on and taps "Test bell", with Sati in the background. The bell must ring, and Android must not mute it.
+- It restarts the emulator. The hourly bell's alarm must be set again.
+
+Vibration, notifications and the lock screen have no automated tests. Each release is tested on a real phone for these.
 
 ## Why this page exists
 

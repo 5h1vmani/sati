@@ -152,3 +152,9 @@ The first pattern was two pulses of 0.3 seconds. Android ran it in full on the P
 Date decided: 9 November 2026
 
 CI ran on every push and on every pull request, so each pull request ran it twice. Pushes now run it only on `main`. OpenSSF Scorecard scored the repo setup every week, and nobody acted on the score, so it is removed. Dependabot no longer proposes Gradle library updates. Each update can change the release APK, so it needs the reproducibility check and a phone check. Libraries are updated on purpose, once per release cycle. Dependabot still proposes updates to the GitHub Actions in CI, because those touch CI only.
+
+### D-18: An agent may tag and publish a release when the maintainer asks for it
+
+Date decided: 9 November 2026
+
+The maintainer asks an agent to run the release steps, as for 1.1.0 to 1.4.0. The agent tags, signs and publishes only the release the maintainer asks for, and it follows the release checklist. The signing key's password stays in the macOS Keychain, and `tools/release.sh` reads it. No agent moves or deletes a `v*` tag.

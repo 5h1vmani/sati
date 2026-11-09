@@ -21,7 +21,7 @@ This file is for AI coding agents that work on Sati. Humans should read [CONTRIB
 
 - Work on a branch and open a pull request. Direct pushes to `main` are blocked.
 - The CI job named `build` is a required check. Renaming it blocks every merge until the ruleset is updated.
-- Never create, move or delete a `v*` tag. Never sign or publish a release. Only the maintainer does that.
+- Create a `v*` tag, sign a release or publish it only when the maintainer asks for that release in the session. Follow the release checklist in [docs/ROADMAP.md](docs/ROADMAP.md). Never move or delete a `v*` tag.
 - A commit subject says what changed in plain words. A reader must understand it without opening the diff.
 - Every commit an agent writes ends with a `Co-Authored-By` line that names the tool.
 - A new decision is a new entry at the end of `docs/DECISIONS.md`. Never edit an old entry.

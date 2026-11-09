@@ -28,6 +28,7 @@ Sati rings a bell now and then during your waking hours. Each bell is a moment t
 <li>A practice can repeat every 2 to 7 days. Press and hold a practice, then drag it, to set the order.</li>
 <li>Today shows each practice and what is left. A done practice takes one tap, and a cross marks any practice not done. Other entries take two taps. A tap on a logged row edits it.</li>
 <li>A focus score from 1 to 10 is optional. Turn it on or off for each practice.</li>
+<li>See how your practice went: the last 7 days on Today, 12 weeks of every practice, and a calendar and trends for each one. There is no streak counter.</li>
 <li>Add entries for past days, so old paper records can be typed in.</li>
 <li>Export the log and your sadhanas to one file, and import it back. A spreadsheet of old records can be imported too.</li>
 </ul>

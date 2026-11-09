@@ -15,7 +15,7 @@ Claude writes the code, the tests and most of the text. Every commit that Claude
 
 ## Checks on every change
 
-GitHub Actions runs these checks on every push and every pull request. A pull request cannot be merged into `main` until they pass.
+GitHub Actions runs these checks on every pull request and every push to `main`. A pull request cannot be merged into `main` until they pass.
 
 - **Unit tests.** The app logic lives in files with no Android code, so it can be tested on any computer. These files decide when a bell rings, whether it plays, vibrates or stays quiet, and how the log counts a day. They have unit tests in `app/src/test`.
 - **Android lint.** It finds common Android mistakes in the code and the resources.
@@ -31,7 +31,7 @@ Plans and larger changes get an audit before they ship. An audit is a separate r
 
 - **Reproducible build.** Anyone can rebuild a release from its git tag and get the same APK. The only difference is the signature. `tools/repro_check.sh` checks this before each release.
 - **Public verification.** When a release is published, GitHub Actions rebuilds it from its tag. It then checks that the signature from the published APK fits the new build. The result is public on the repo's Actions page.
-- **Supply chain.** OpenSSF Scorecard checks the repo's security setup every week. Dependabot proposes dependency updates once a month.
+- **Supply chain.** Every action in CI is pinned to a commit SHA. Dependabot proposes updates to these actions once a month. Libraries are updated on purpose, once per release cycle, because an update can change the APK.
 
 ## What is not automated
 

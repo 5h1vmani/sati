@@ -194,6 +194,7 @@ The button with the calendar icon on a Today row opens the practice. The screen 
 - One sentence for the weakest weekday, such as "Sunday is your weakest day." It appears once the practice has 28 active days in the last 12 weeks. The weekday must be at least 15 percentage points below the practice's average. If there is a tie, there is no sentence.
 - A month calendar with the same marks as the dots. A tap on a past day opens that day's newest entry, or a new entry for that day. The arrows move one month back or forward.
 - For durations and cycles, a bar for each of the last 8 weeks, with the total of each week. One sentence gives this week's total. The chart shows only when the 8 weeks have an amount above 0.
+- For percent and scale practices, a line of the weekly average value over 12 weeks. Each day with an entry counts once, and a not-done entry counts as 0, so the scale starts at 0. One sentence gives the average of the last 4 weeks. The chart shows only when the 12 weeks have an entry.
 - For practices with focus scores, a line of the weekly average focus over 12 weeks. A week with no score leaves a gap. One sentence gives the average of the last 4 weeks. The chart shows only when the 12 weeks have a score.
 - The entries, newest first, with their notes.
 

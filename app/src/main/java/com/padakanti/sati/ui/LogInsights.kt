@@ -57,6 +57,8 @@ import com.padakanti.sati.R
 import com.padakanti.sati.log.Analytics
 import com.padakanti.sati.log.DayMark
 import com.padakanti.sati.log.Entry
+import com.padakanti.sati.log.EntryRules
+import com.padakanti.sati.log.Focus
 import com.padakanti.sati.log.LogController
 import com.padakanti.sati.log.LogDay
 import com.padakanti.sati.log.Measure
@@ -360,8 +362,12 @@ internal fun PracticeHistory(practice: Practice, entries: List<Entry>, today: Lo
     if ((practice.measure == Measure.Duration || practice.measure == Measure.Count) && hasAmount) {
         AmountChart(practice.measure, track.entries, today, firstDay)
     }
-    val focusStarts = Analytics.weekStarts(today, firstDay, Analytics.TREND_WEEKS)
-    if (Analytics.weeklyFocus(track.entries, focusStarts).any { it != null }) {
+    val trendStarts = Analytics.weekStarts(today, firstDay, Analytics.TREND_WEEKS)
+    val rated = practice.measure == Measure.Percent || practice.measure == Measure.Scale
+    if (rated && Analytics.weeklyValues(track.entries, trendStarts).any { it != null }) {
+        ValueChart(practice.measure, track.entries, today, firstDay)
+    }
+    if (Analytics.weeklyFocus(track.entries, trendStarts).any { it != null }) {
         FocusChart(track.entries, today, firstDay)
     }
 }
@@ -562,39 +568,93 @@ private fun AmountChart(measure: Measure, entries: List<Entry>, today: Long, fir
     }
 }
 
-/** The average focus of each of the last 12 weeks as a line on a scale from 1 to 10. A week with no score leaves a gap. */
+/** The average focus of each of the last 12 weeks, on a scale from 1 to 10. */
 @Composable
 private fun FocusChart(entries: List<Entry>, today: Long, firstDay: DayOfWeek) {
     val starts = remember(today, firstDay) { Analytics.weekStarts(today, firstDay, Analytics.TREND_WEEKS) }
     val weekly = remember(entries, starts) { Analytics.weeklyFocus(entries, starts) }
     val recentFrom = starts[Analytics.TREND_WEEKS - Analytics.RECENT_WEEKS]
     val recent = remember(entries, recentFrom, today) { Analytics.focusAverage(entries, recentFrom, today) }
-    val title = stringResource(R.string.log_chart_focus)
+    WeeklyLineChart(
+        title = stringResource(R.string.log_chart_focus),
+        headline = if (recent != null) stringResource(R.string.log_focus_four_weeks, recent) else stringResource(R.string.log_focus_none_recent),
+        weekly = weekly,
+        starts = starts,
+        min = Focus.MIN.toDouble(),
+        max = Focus.MAX.toDouble(),
+        valueText = { String.format(locale(), "%.1f", it) },
+    )
+}
+
+/**
+ * The average value of each of the last 12 weeks for a percent or scale practice. A not-done entry counts as 0,
+ * so the scale starts at 0.
+ */
+@Composable
+private fun ValueChart(measure: Measure, entries: List<Entry>, today: Long, firstDay: DayOfWeek) {
+    val starts = remember(today, firstDay) { Analytics.weekStarts(today, firstDay, Analytics.TREND_WEEKS) }
+    val weekly = remember(entries, starts) { Analytics.weeklyValues(entries, starts) }
+    val recentFrom = starts[Analytics.TREND_WEEKS - Analytics.RECENT_WEEKS]
+    val recent = remember(entries, recentFrom, today) { Analytics.valueAverage(entries, recentFrom, today) }
+    val percent = measure == Measure.Percent
+    val l = locale()
+    val valueText: @Composable (Double) -> String = {
+        if (percent) stringResource(R.string.log_percent_value, Math.round(it).toInt()) else String.format(l, "%.1f", it)
+    }
+    WeeklyLineChart(
+        title = stringResource(if (percent) R.string.log_chart_percent else R.string.log_chart_scale),
+        headline = when {
+            recent == null -> stringResource(R.string.log_value_none_recent)
+            percent -> stringResource(R.string.log_value_four_weeks_percent, Math.round(recent).toInt())
+            else -> stringResource(R.string.log_value_four_weeks_scale, recent)
+        },
+        weekly = weekly,
+        starts = starts,
+        min = 0.0,
+        max = (if (percent) EntryRules.PERCENT_MAX else EntryRules.SCALE_MAX).toDouble(),
+        valueText = valueText,
+    )
+}
+
+/**
+ * One value per week as a line from [min] to [max], with the two ends labelled on the left.
+ * A week with no value leaves a gap. [headline] is the one sentence above the line.
+ */
+@Composable
+private fun WeeklyLineChart(
+    title: String,
+    headline: String,
+    weekly: List<Double?>,
+    starts: List<Long>,
+    min: Double,
+    max: Double,
+    valueText: @Composable (Double) -> String,
+) {
     val noScore = stringResource(R.string.log_chart_no_score)
-    val values = weekly.map { v -> v?.let { String.format(locale(), "%.1f", it) } ?: noScore }
+    val values = weekly.map { v -> if (v == null) noScore else valueText(v) }
     val description = pluralStringResource(R.plurals.log_chart_description, weekly.size, weekly.size, values.joinToString(stringResource(R.string.log_list_separator)))
+    val l = locale()
+    val top = String.format(l, "%d", max.toInt())
+    val bottom = String.format(l, "%d", min.toInt())
 
     ChartSurface(title) {
-        Text(
-            if (recent != null) stringResource(R.string.log_focus_four_weeks, recent) else stringResource(R.string.log_focus_none_recent),
-            style = MaterialTheme.typography.titleMedium,
-        )
+        Text(headline, style = MaterialTheme.typography.titleMedium)
         val line = MaterialTheme.colorScheme.primary
         val grid = MaterialTheme.colorScheme.outlineVariant
         val labelStyle = MaterialTheme.typography.labelSmall
         val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
         Row(Modifier.fillMaxWidth().height(88.dp)) {
-            Column(Modifier.width(FOCUS_LABELS).fillMaxHeight().clearAndSetSemantics {}, verticalArrangement = Arrangement.SpaceBetween) {
-                Text("10", style = labelStyle, color = labelColor)
-                Text("1", style = labelStyle, color = labelColor)
+            Column(Modifier.width(CHART_LABELS).fillMaxHeight().clearAndSetSemantics {}, verticalArrangement = Arrangement.SpaceBetween) {
+                Text(top, style = labelStyle, color = labelColor, softWrap = false)
+                Text(bottom, style = labelStyle, color = labelColor, softWrap = false)
             }
             Canvas(Modifier.weight(1f).height(88.dp).clearAndSetSemantics { contentDescription = description }) {
-                // The same as half the height of a label, so "10" and "1" sit on their lines.
+                // The same as half the height of a label, so the end labels sit on their lines.
                 val pad = 8.dp.toPx()
                 val step = (size.width - 2 * pad) / (weekly.size - 1)
-                fun y(v: Double) = (pad + (1 - (v - 1) / 9) * (size.height - 2 * pad)).toFloat()
-                drawLine(grid, Offset(0f, y(10.0)), Offset(size.width, y(10.0)), 1.dp.toPx())
-                drawLine(grid, Offset(0f, y(1.0)), Offset(size.width, y(1.0)), 1.dp.toPx())
+                fun y(v: Double) = (pad + (1 - (v - min) / (max - min)) * (size.height - 2 * pad)).toFloat()
+                drawLine(grid, Offset(0f, y(max)), Offset(size.width, y(max)), 1.dp.toPx())
+                drawLine(grid, Offset(0f, y(min)), Offset(size.width, y(min)), 1.dp.toPx())
                 weekly.forEachIndexed { i, v ->
                     if (v == null) return@forEachIndexed
                     val p = Offset(pad + i * step, y(v))
@@ -605,14 +665,14 @@ private fun FocusChart(entries: List<Entry>, today: Long, firstDay: DayOfWeek) {
             }
         }
         Row {
-            Spacer(Modifier.width(FOCUS_LABELS))
+            Spacer(Modifier.width(CHART_LABELS))
             Box(Modifier.weight(1f)) { AxisLabels(shortDate(starts.first()), stringResource(R.string.log_this_week)) }
         }
     }
 }
 
-/** The width of the "10" and "1" labels on the left of the focus chart. The dates under it start after the same width. */
-private val FOCUS_LABELS = 24.dp
+/** The width of the end labels on the left of a line chart, wide enough for "100". The dates under it start after the same width. */
+private val CHART_LABELS = 28.dp
 
 /** The first week's date on the left and "This week" on the right, under a chart. */
 @Composable

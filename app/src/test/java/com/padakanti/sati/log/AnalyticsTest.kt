@@ -627,4 +627,34 @@ class AnalyticsTest {
     fun activeWeekIsFalseForAWeekAfterToday() {
         assertFalse(Analytics.activeWeek(track(prac()), 21, 20))
     }
+
+    // valueAverage: each day counts once, and a not-done entry counts as 0.
+
+    @Test
+    fun valueAverageAveragesTheDaysNotTheEntries() {
+        // Day 1 has 8 and 6, so its value is 7. Day 2 has 4. The average of 7 and 4 is 5.5.
+        val entries = listOf(e("p", 1, 8), e("p", 1, 6), e("p", 2, 4))
+        assertEquals(5.5, Analytics.valueAverage(entries, 0, 6)!!, 1e-9)
+    }
+
+    @Test
+    fun valueAverageCountsNotDoneAsZero() {
+        // Day 1 has 8 and a not-done entry, so its value is 4. Day 2 is only not done, so its value is 0.
+        val entries = listOf(e("p", 1, 8), e("p", 1, 0), e("p", 2, 0))
+        assertEquals(2.0, Analytics.valueAverage(entries, 0, 6)!!, 1e-9)
+    }
+
+    @Test
+    fun valueAverageIsNullWithNoEntries() {
+        assertNull(Analytics.valueAverage(listOf(e("p", 10, 5)), 0, 6))
+    }
+
+    @Test
+    fun weeklyValuesGiveOneValueOrGapPerWeek() {
+        val entries = listOf(e("p", 1, 6), e("p", 15, 9))
+        val weeks = Analytics.weeklyValues(entries, listOf(0L, 7L, 14L))
+        assertEquals(6.0, weeks[0]!!, 1e-9)
+        assertNull(weeks[1])
+        assertEquals(9.0, weeks[2]!!, 1e-9)
+    }
 }

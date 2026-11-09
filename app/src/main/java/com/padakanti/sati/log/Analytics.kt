@@ -254,6 +254,19 @@ object Analytics {
     fun focusAverage(entries: List<Entry>, from: Long, to: Long): Double? =
         entries.filter { it.day in from..to }.mapNotNull { it.focus }.takeIf { it.isNotEmpty() }?.average()
 
+    /**
+     * The average value of a percent or scale practice from [from] to [to]. Each day with an entry counts once.
+     * A day's value is the average of its entries, and a not-done entry counts as 0. Null when no day has an entry.
+     */
+    fun valueAverage(entries: List<Entry>, from: Long, to: Long): Double? =
+        entries.filter { it.day in from..to }.groupBy { it.day }.values
+            .map { day -> day.map { it.value }.average() }
+            .takeIf { it.isNotEmpty() }?.average()
+
+    /** [valueAverage] for each week that starts on a day in [starts]. */
+    fun weeklyValues(entries: List<Entry>, starts: List<Long>): List<Double?> =
+        starts.map { start -> valueAverage(entries, start, start + 6) }
+
     /** The days of [month] as a grid that starts on [firstDay]. Null cells are the days of the next or previous month. */
     fun monthGrid(month: YearMonth, firstDay: DayOfWeek): List<Long?> {
         val first = month.atDay(1)

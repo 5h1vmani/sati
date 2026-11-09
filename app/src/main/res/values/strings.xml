@@ -315,6 +315,11 @@
     <string name="log_chart_time">Time per week</string>
     <string name="log_chart_cycles">Cycles per week</string>
     <string name="log_chart_focus">Focus per week</string>
+    <string name="log_chart_scale">Score per week</string>
+    <string name="log_chart_percent">Percent per week</string>
+    <string name="log_value_four_weeks_scale">Averaged %1$.1f of 10 over 4 weeks.</string>
+    <string name="log_value_four_weeks_percent">Averaged %1$d%% over 4 weeks.</string>
+    <string name="log_value_none_recent">No entries in 4 weeks.</string>
     <plurals name="log_chart_description">
         <item quantity="one">The last week shows %2$s.</item>
         <item quantity="other">The last %1$d weeks, oldest first, show %2$s.</item>

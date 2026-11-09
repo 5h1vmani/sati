@@ -117,6 +117,13 @@ interface LogDao {
     @Query("SELECT * FROM archive_periods ORDER BY fromDay")
     suspend fun allArchivePeriods(): List<ArchivePeriod>
 
+    @Query("SELECT * FROM archive_periods ORDER BY fromDay")
+    fun archivePeriods(): Flow<List<ArchivePeriod>>
+
+    /** The first entry day of each practice. The analytics use it to find when a practice started. */
+    @Query("SELECT practiceId, MIN(day) AS day FROM entries GROUP BY practiceId")
+    fun firstEntries(): Flow<List<FirstEntry>>
+
     @Query("SELECT COUNT(*) FROM entries WHERE practiceId = :practiceId")
     suspend fun entryCount(practiceId: String): Int
 

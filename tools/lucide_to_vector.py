@@ -20,9 +20,11 @@ ICONS = [
     "timer", "plus", "pencil", "trash-2", "x",
     # The Log tab.
     "notebook-pen", "circle-check", "circle", "archive", "archive-restore",
-    "download", "upload", "arrow-left", "calendar", "list-checks",
+    "download", "upload", "arrow-left", "calendar",
     # Marking a done practice as not done.
     "circle-x",
+    # Month arrows on a practice's calendar.
+    "chevron-left", "chevron-right",
     # The repeat control, and the Log home screen.
     "minus", "check", "ellipsis-vertical", "grip-vertical",
 ]

@@ -19,7 +19,7 @@
     <string name="log_dismiss">Dismiss</string>
     <string name="log_working">Please wait.</string>
     <string name="log_error_generic">Something went wrong, and the change may not be saved. Check that the phone has free space, then try again.</string>
-    <string name="log_open_entries">Show entries of %1$s</string>
+    <string name="log_open_entries">Show history of %1$s</string>
     <string name="log_save_keep_focus">Save and keep focus</string>
 
     <!-- Today -->
@@ -43,6 +43,8 @@
     <string name="log_summary_left">%1$d left</string>
     <string name="log_summary_description">%1$s. %2$s</string>
     <string name="log_separator">" · "</string>
+    <!-- Joins the values a screen reader reads for a chart. -->
+    <string name="log_list_separator">", "</string>
     <string name="log_row_focus">%1$s · Focus %2$.1f</string>
     <string name="log_row_two">%1$s · %2$s</string>
     <string name="log_section_logged">Logged today</string>
@@ -274,4 +276,63 @@
     <string name="test_bell_quiet_call">Test at %1$s: it stayed quiet, because a call was on.</string>
     <string name="test_bell_missed">The test bell set for %1$s did not come. The phone may be stopping Sati in the background. Let Sati run in the background, then test again.</string>
     <string name="test_bell_background">Background setting</string>
+
+    <!-- Analytics. As short as the meaning allows. A sentence shows only when it says something. -->
+    <string name="log_mode_today">Today</string>
+    <string name="log_mode_weeks">12 weeks</string>
+    <plurals name="log_week_all_done">
+        <item quantity="one">All done on %1$d of %2$d day.</item>
+        <item quantity="other">All done on %1$d of %2$d days.</item>
+    </plurals>
+    <string name="log_week_most_missed">%1$s missed %2$d of %3$d.</string>
+    <string name="log_last_7_days">Last 7 days</string>
+    <plurals name="log_week_dots">
+        <item quantity="one">Done on %1$d of %2$d due day in the last 7 days.</item>
+        <item quantity="other">Done on %1$d of %2$d due days in the last 7 days.</item>
+    </plurals>
+    <string name="log_week_dots_none">Nothing was due in the last 7 days.</string>
+    <plurals name="log_trend_steady">
+        <item quantity="one">Steady on %1$d of %2$d practice.</item>
+        <item quantity="other">Steady on %1$d of %2$d practices.</item>
+    </plurals>
+    <string name="log_trend_dropped">%1$s dropped in the last 4 weeks.</string>
+    <string name="log_trend_rose">%1$s rose in the last 4 weeks.</string>
+    <string name="log_trend_empty">Your weeks fill in as you log.</string>
+    <plurals name="log_trend_row">
+        <item quantity="one">%1$s. Done on %2$d of %3$d due day in 12 weeks.</item>
+        <item quantity="other">%1$s. Done on %2$d of %3$d due days in 12 weeks.</item>
+    </plurals>
+    <string name="log_trend_row_none">%1$s. Nothing was due in 12 weeks.</string>
+    <string name="log_this_week">This week</string>
+    <plurals name="log_last_days">
+        <item quantity="one">Done on %1$d of %2$d day.</item>
+        <item quantity="other">Done on %1$d of %2$d days.</item>
+    </plurals>
+    <string name="log_weakest_day">%1$s is your weakest day.</string>
+    <string name="log_amount_week">%1$s this week.</string>
+    <string name="log_focus_four_weeks">Focus averaged %1$.1f over 4 weeks.</string>
+    <string name="log_focus_none_recent">No focus scores in 4 weeks.</string>
+    <string name="log_chart_time">Time per week</string>
+    <string name="log_chart_cycles">Cycles per week</string>
+    <string name="log_chart_focus">Focus per week</string>
+    <plurals name="log_chart_description">
+        <item quantity="one">The last week shows %2$s.</item>
+        <item quantity="other">The last %1$d weeks, oldest first, show %2$s.</item>
+    </plurals>
+    <string name="log_chart_no_score">no score</string>
+    <string name="log_duration_h">%1$d h</string>
+    <string name="log_duration_h_min">%1$d h %2$d min</string>
+    <string name="log_previous_month">Previous month</string>
+    <string name="log_next_month">Next month</string>
+    <string name="log_mark_done">done</string>
+    <string name="log_mark_missed">missed</string>
+    <string name="log_mark_not_due">not due</string>
+    <string name="log_mark_open">not logged yet</string>
+    <string name="log_mark_inactive">not active</string>
+    <string name="log_calendar_day">%1$s, %2$s</string>
+    <string name="log_entries_heading">Entries</string>
+    <string name="log_legend_all">All due days</string>
+    <string name="log_legend_most">Half or more</string>
+    <string name="log_legend_some">Less than half</string>
+    <string name="log_legend_none">None</string>
 </resources>

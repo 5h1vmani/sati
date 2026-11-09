@@ -29,8 +29,8 @@ A release comes out about every 3 to 4 weeks. This gives testers time to try eac
 | — | — | Early Dec 2026 | Repeat the rebuild check on 1.3.0, the first build with a database | Done, 6 Nov 2026, identical |
 | 1.3.1 | 5 | 7 Nov 2026 | Bells ring on Android 17, waking hours fit large text | Done, 7 Nov 2026 |
 | 1.4.0 | 6 | 7 Nov 2026 | Test bell button, a 1-second vibration you can feel | Done, 7 Nov 2026 |
-| 1.5.0 | 7 | Late Dec 2026 | Timer link, evening reminder, launcher shortcuts | Planned |
-| 1.6.0 | 8 | Late Jan 2027 | Analytics and streaks | Planned |
+| 1.5.0 | 7 | Late Nov 2026 | Analytics: the week on Today, 12 weeks, practice history | In progress |
+| 1.6.0 | 8 | Late Jan 2027 | Timer link, evening reminder, launcher shortcuts | Planned |
 | — | — | After 30 Jan 2027 | Resubmit to F-Droid | Planned |
 | 1.7.0 | 9 | Feb 2027 | Telugu and Hindi translations | Planned |
 
@@ -78,7 +78,7 @@ This section moved to [docs/DECISIONS.md](DECISIONS.md), which records the decis
 
 ## Practice log plan
 
-The practice log records every practice, not only the ones timed in Sati, such as Hatha Yoga and Kriya Yoga. It is a third tab, "Log", next to "Bell" and "Sadhana". It is built across three releases: 1.3.0, 1.5.0 and 1.6.0. Decided on 5 November 2026, then corrected the same day after two independent audits of the plan.
+The practice log records every practice, not only the ones timed in Sati, such as Hatha Yoga and Kriya Yoga. It is a third tab, "Log", next to "Bell" and "Sadhana". It is built across three releases: 1.3.0, 1.5.0 and 1.6.0. The analytics came first, in 1.5.0 (D-19). Decided on 5 November 2026, then corrected the same day after two independent audits of the plan.
 
 ### Rules for all three releases
 
@@ -114,7 +114,7 @@ The log is planned as a Room database. Room is Android's standard library for SQ
 - **Not done.** Any practice can be marked not done. The mark is an entry with value 0 and no focus, for every measure. A done entry has value 1.
 - A practice can have an optional daily target, such as 108 cycles or 30 minutes. Only durations and cycles have a target. The target changes only what the screen shows. Any entry counts as done, so 80 of 108 counts and still shows as 80 of 108.
 - **Ask for focus.** Each practice has a switch for the focus score. It starts on for durations and cycles, and off for done, percent and scale. The user can change it. A practice that is switched off keeps the focus its old entries already have.
-- **Archive.** An archived practice leaves Today and keeps its history. It can be brought back. Each archive and return is stored with its date, because the analytics in 1.6.0 skip the archived days.
+- **Archive.** An archived practice leaves Today and keeps its history. It can be brought back. Each archive and return is stored with its date, because the analytics skip the archived days.
 - **Delete.** Deleting a practice also deletes its entries. The app first says how many entries will go and which sadhanas link to the practice, and it asks for confirmation.
 
 ### Entries
@@ -159,7 +159,60 @@ The app sets `allowBackup="false"` and has no internet permission, so the export
 - A vibrating bell is one vibration of 1 second per strike. The old pattern, two pulses of 0.3 seconds, went unnoticed on a real phone.
 - This was planned as a patch. The Test bell is a new feature, so the release is 1.4.0, and the plans below moved one version later.
 
-## 1.5.0: Timer link, reminder and shortcuts
+## 1.5.0: Analytics
+
+The log shows how the practice went, not only what is left today. Decided on 9 November 2026 (D-19). The views answer four questions. What is left today? How did the week go? Is the practice steady over months? How is one practice going?
+
+### Definitions
+
+- **Active day.** A day counts for a practice when the practice was active. It is active from the earlier of its creation and its first entry, except while it is archived.
+- **Done.** A practice is done on a day when it has at least one entry above 0 on that day. A not-done entry counts as a missed day, even though it is an entry. A day with both marks counts as done. Percent and scale days count as done with any entry above 0. Their daily value is the average of the day's entries, and a not-done entry counts as 0 in trends.
+- **Due days.** Counts of done and missed days count only the days a practice is due. A not-done entry, or no entry, on a due day is a missed day. An entry on a day that is not due is extra. It shows as done, and it does not change any count.
+- **Today.** Today never counts as missed. It counts as done once it has an entry above 0.
+- **Weeks.** A week starts on the first day of the week of the phone's language. The current week counts up to today.
+
+### Today
+
+- Each row shows the last 7 days as small dots, under the practice name. The last dot is today. The letters of the weekdays stand above the dots of the first section, and today's letter is bold.
+- A filled dot is done. An empty ring is a missed due day. A very small dot is a day that was not due. A day before the practice started, or while it was archived, shows nothing.
+- Today, while it is open, is a ring in the brand colour. The status ring on the left stays the main mark for today.
+- The day card adds at most two sentences about the last 7 days. Today counts only once everything due today is done. The first says on how many days everything due was done, such as "All done on 4 of 7 days." The second names the practice with the most missed due days, such as "Hatha Yoga missed 3 of 5." It appears only when that practice missed 2 or more.
+
+### 12 weeks
+
+- A switch at the top of the Log tab changes between "Today" and "12 weeks".
+- Each practice has one row of 12 squares, one for each week. The fill of a square shows the share of due days done that week. Each square fills from the bottom. Full is every due day. Two thirds is half or more, and one third is less than half. An empty outline is none. A legend under the rows says this. A week with no due days shows a very small dot.
+- At most two sentences sit on top. The first counts the steady practices, such as "Steady on 15 of 18 practices." A practice is steady when it was done on at least 80 percent of its due days in the 12 weeks.
+- The second compares the last 4 weeks with the 8 weeks before. It names the practice whose share fell most, such as "Hatha Yoga dropped in the last 4 weeks." It needs a fall of at least 20 percentage points, and 7 due days in each part. If no practice fell, it names the practice that rose most, by the same rules.
+- A tap on a row opens that practice. Nothing can be logged in this view.
+
+### One practice
+
+The button with the calendar icon on a Today row opens the practice. The screen shows, from the top:
+
+- One sentence for the last 30 days, such as "Done on 26 of 30 days."
+- One sentence for the weakest weekday, such as "Sunday is your weakest day." It appears once the practice has 28 active days in the last 12 weeks. The weekday must be at least 15 percentage points below the practice's average. If there is a tie, there is no sentence.
+- A month calendar with the same marks as the dots. A tap on a past day opens that day's newest entry, or a new entry for that day. The arrows move one month back or forward.
+- For durations and cycles, a bar for each of the last 8 weeks, with the total of each week. One sentence gives this week's total.
+- For practices with focus scores, a line of the weekly average focus over 12 weeks. A week with no score leaves a gap. One sentence gives the average of the last 4 weeks.
+- The entries, newest first, with their notes.
+
+### Text and design
+
+- Sentences are as short as the meaning allows. A sentence appears only when it says something.
+- Shapes carry the meaning, not colour alone. Every chart has a text description for screen readers.
+- The charts are drawn with Compose `Canvas`. No chart library is added.
+
+### Left out
+
+- **Streak counter.** It falls to 0 after one missed day, which makes people give up. The calendar shows long runs of done days without a number to lose.
+- **One total for all practices.** Minutes, cycles and percents cannot be added.
+- **Badges and scores.** They turn the practice into a game.
+- **Focus patterns** by time of day and session length. One person's data is too small, and the entry time does not record when the practice happened.
+- **Month review.** It repeated what the calendar and the 30-day count already show.
+- **A tap on each Today dot.** A 12 dp dot is too small to tap. Android asks for 48 dp. The calendar on the practice screen opens a past day instead.
+
+## 1.6.0: Timer link, reminder and shortcuts
 
 ### Timer link
 
@@ -186,32 +239,6 @@ The app sets `allowBackup="false"` and has no internet permission, so the export
 - Most launchers show 4 shortcuts. This is checked on the Pixel launcher only.
 - A sadhana shortcut opens the app and starts the sadhana through the same path as the Start button. The zero-volume warning and the permission request then still apply. If a sadhana is already running, the shortcut opens the running screen instead.
 - The shortcuts are updated when a sadhana is renamed or deleted.
-
-## 1.6.0: Analytics
-
-Analytics come after the log has collected about two months of real entries. The views are designed against that data, not against invented data.
-
-### Definitions
-
-- **Active day.** A day counts for a practice when the practice was active. It is active from the earlier of its creation and its first entry, except while it is archived.
-- **Done.** A practice is done on a day when it has at least one entry above 0 on that day. A not-done entry counts as a missed day, even though it is an entry. A day with both marks counts as done. Percent and scale days count as done with any entry above 0. Their daily value is the average of the day's entries, and a not-done entry counts as 0 in trends.
-- **Due days.** Streaks and missed days count only the days a practice is due. A not-done entry, or no entry, on a due day is a missed day. An entry on a day that is not due is extra. It neither breaks nor extends a streak.
-- **Today.** Today never counts as missed. It counts as done once it has an entry.
-
-### Views
-
-- **Week strip.** Seven dots at the top of Today. Each dot shows the share of practices done that day, out of the practices active that day.
-- **Calendar.** A month grid per practice marks each day the practice was done.
-- **Streak.** The number of active days in a row that the practice was done, up to today. Archived days neither break the streak nor add to it.
-- **Last 30 days.** "Done on N of M days", where M is the number of active days in the last 30. For a practice older than 30 days, M is 30.
-- **Weekday pattern.** The share of days done for each weekday. It appears once the practice has 4 weeks of active days. One sentence names the weakest weekday only when it is at least 15 percentage points below the practice's average. If there is a tie, or every day is done, there is no sentence.
-- **Focus trend.** The weekly average focus per practice over the last 12 weeks. It covers only practices that ask for focus. Each scored entry counts equally. A week with no scored entries shows a gap. Weekly averages are used because daily scores change too much to read.
-- **Technical.** The database only loads the entries for a date range. Each definition above has unit tests for these edge cases.
-
-### Cut after the audits
-
-- **Focus patterns** by time of day and session length. With one person's fixed routine, most groups would never collect enough entries, and the entry time does not record when the practice happened.
-- **Month review.** It repeated what the calendar, the streak and the 30-day count already show.
 
 ## 1.7.0: Translations
 

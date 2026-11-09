@@ -158,3 +158,9 @@ CI ran on every push and on every pull request, so each pull request ran it twic
 Date decided: 9 November 2026
 
 The maintainer asks an agent to run the release steps, as for 1.1.0 to 1.4.0. The agent tags, signs and publishes only the release the maintainer asks for, and it follows the release checklist. The signing key's password stays in the macOS Keychain, and `tools/release.sh` reads it. No agent moves or deletes a `v*` tag.
+
+### D-19: Analytics come before the timer link, as 1.5.0
+
+Date decided: 9 November 2026
+
+The maintainer logs about 18 practices every day, and the log showed nothing back. So the analytics move to 1.5.0, and the timer link, the evening reminder and the launcher shortcuts move to 1.6.0. The plan waited for two months of entries. The views that need a lot of data already wait on their own, after 4 weeks or 12 weeks. The design puts the week on each Today row, adds a 12-week view, and drops the streak counter. A streak falls to 0 after one missed day, which makes people give up.

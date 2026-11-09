@@ -22,8 +22,8 @@ android {
         // The phone is a Pixel 3 XL on Android 12, which is API 31.
         minSdk = 31
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.3.1"
+        versionCode = 6
+        versionName = "1.4.0"
         // Instrumented tests run only on emulators, through tools/emulator_check.sh.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

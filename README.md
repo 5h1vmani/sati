@@ -21,6 +21,7 @@ Sati is an Android app that rings a bell now and then during your waking hours. 
 - Separate waking hours for weekdays and weekends.
 - Pause for one or two hours. The bell starts again by itself.
 - On silent, the phone vibrates instead. During Do Not Disturb or a phone call, Sati stays quiet.
+- A Test bell button rings a real bell 10 seconds later, so you can check what your phone does with it.
 - The built-in bell or your own sound, with its own volume.
 - A Quick Settings tile to turn the bell on or off.
 - It keeps ringing after a restart, even before the first unlock.

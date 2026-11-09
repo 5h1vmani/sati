@@ -63,4 +63,4 @@ Report a security problem as described in [SECURITY.md](SECURITY.md). Do not ope
 
 ## Translations
 
-Translations are not open yet. They are planned for version 1.6.0. See the [roadmap](docs/ROADMAP.md).
+Translations are not open yet. They are planned for version 1.7.0. See the [roadmap](docs/ROADMAP.md).

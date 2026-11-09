@@ -8,6 +8,7 @@ Sati rings a bell now and then during your waking hours. Each bell is a moment t
 <li>Set separate waking hours for weekdays and weekends.</li>
 <li>Pause for one or two hours. The bell starts again by itself.</li>
 <li>On silent, the phone vibrates instead. During Do Not Disturb or a phone call, Sati stays quiet.</li>
+<li>Test bell: a real bell rings 10 seconds later, so you can check what your phone does with it.</li>
 <li>Use the built-in bell or choose your own sound, and set its volume.</li>
 <li>Turn the bell on or off from a Quick Settings tile.</li>
 </ul>

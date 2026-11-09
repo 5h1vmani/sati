@@ -28,10 +28,11 @@ A release comes out about every 3 to 4 weeks. This gives testers time to try eac
 | 1.3.0 | 4 | Early Dec 2026 | Practice log, Today, export and import | Done, 6 Nov 2026 |
 | — | — | Early Dec 2026 | Repeat the rebuild check on 1.3.0, the first build with a database | Done, 6 Nov 2026, identical |
 | 1.3.1 | 5 | 7 Nov 2026 | Bells ring on Android 17, waking hours fit large text | Done, 7 Nov 2026 |
-| 1.4.0 | 6 | Late Dec 2026 | Timer link, evening reminder, launcher shortcuts | Planned |
-| 1.5.0 | 7 | Late Jan 2027 | Analytics and streaks | Planned |
+| 1.4.0 | 6 | 7 Nov 2026 | Test bell button, a 1-second vibration you can feel | Done, 7 Nov 2026 |
+| 1.5.0 | 7 | Late Dec 2026 | Timer link, evening reminder, launcher shortcuts | Planned |
+| 1.6.0 | 8 | Late Jan 2027 | Analytics and streaks | Planned |
 | — | — | After 30 Jan 2027 | Resubmit to F-Droid | Planned |
-| 1.6.0 | 8 | Feb 2027 | Telugu and Hindi translations | Planned |
+| 1.7.0 | 9 | Feb 2027 | Telugu and Hindi translations | Planned |
 
 ## 1.1.0
 
@@ -77,11 +78,11 @@ This section moved to [docs/DECISIONS.md](DECISIONS.md), which records the decis
 
 ## Practice log plan
 
-The practice log records every practice, not only the ones timed in Sati, such as Hatha Yoga and Kriya Yoga. It is a third tab, "Log", next to "Bell" and "Sadhana". It is built across three releases: 1.3.0, 1.4.0 and 1.5.0. Decided on 5 November 2026, then corrected the same day after two independent audits of the plan.
+The practice log records every practice, not only the ones timed in Sati, such as Hatha Yoga and Kriya Yoga. It is a third tab, "Log", next to "Bell" and "Sadhana". It is built across three releases: 1.3.0, 1.5.0 and 1.6.0. Decided on 5 November 2026, then corrected the same day after two independent audits of the plan.
 
 ### Rules for all three releases
 
-- **Text.** All new screen text goes into string resources from the start, as whole sentences with plural forms. Pure Kotlin functions return numbers and dates, never English sentences. This keeps the translation in 1.6.0 to new text only.
+- **Text.** All new screen text goes into string resources from the start, as whole sentences with plural forms. Pure Kotlin functions return numbers and dates, never English sentences. This keeps the translation in 1.7.0 to new text only.
 - **One owner.** `LogController` is the one place that writes the log. Today, the entry form, the timer link, import and delete all call it, as the screen calls `BellController` and `SadhanaController`.
 - **Pure logic.** The day boundary, Today, the export format, the import rules and every analytics view are pure Kotlin functions with unit tests, like `Sadhana.kt`.
 
@@ -113,7 +114,7 @@ The log is planned as a Room database. Room is Android's standard library for SQ
 - **Not done.** Any practice can be marked not done. The mark is an entry with value 0 and no focus, for every measure. A done entry has value 1.
 - A practice can have an optional daily target, such as 108 cycles or 30 minutes. Only durations and cycles have a target. The target changes only what the screen shows. Any entry counts as done, so 80 of 108 counts and still shows as 80 of 108.
 - **Ask for focus.** Each practice has a switch for the focus score. It starts on for durations and cycles, and off for done, percent and scale. The user can change it. A practice that is switched off keeps the focus its old entries already have.
-- **Archive.** An archived practice leaves Today and keeps its history. It can be brought back. Each archive and return is stored with its date, because the analytics in 1.5.0 skip the archived days.
+- **Archive.** An archived practice leaves Today and keeps its history. It can be brought back. Each archive and return is stored with its date, because the analytics in 1.6.0 skip the archived days.
 - **Delete.** Deleting a practice also deletes its entries. The app first says how many entries will go and which sadhanas link to the practice, and it asks for confirmation.
 
 ### Entries
@@ -152,7 +153,13 @@ The app sets `allowBackup="false"` and has no internet permission, so the export
 - **Paper records.** Import also reads a CSV made by hand with four columns: date, practice, value and focus in percent. These rows have no ID. A value may end in a percent sign for a percent practice. For a duration, a plain number is minutes, "1:30" is minutes and seconds, and "45s" is seconds. Every value is checked against the measure of its practice, and one wrong row stops the whole import. A value of 0 means not done. For a done practice, any value of 1 or more means done. A focus in a row is kept as it is. A row with the same practice, day and value as an existing entry is skipped. A practice name the app does not know creates a new practice, and the app asks for its measure.
 - **Export reminder.** The menu shows when the last export was made. After 30 days the top of the tab asks for a new one. The first ask, before any export, is a note at the bottom of the list, so the rows do not jump after the first entry.
 
-## 1.4.0: Timer link, reminder and shortcuts
+## 1.4.0: Test bell and vibration
+
+- A Test bell card in the Bell tab rings a real bell 10 seconds after the tap. It uses its own alarm slot and the same path as the hourly bell, so it shows what the phone does with a bell now. If the alarm does not come within a minute, the card says the phone may stop Sati in the background.
+- A vibrating bell is one vibration of 1 second per strike. The old pattern, two pulses of 0.3 seconds, went unnoticed on a real phone.
+- This was planned as a patch. The Test bell is a new feature, so the release is 1.4.0, and the plans below moved one version later.
+
+## 1.5.0: Timer link, reminder and shortcuts
 
 ### Timer link
 
@@ -180,7 +187,7 @@ The app sets `allowBackup="false"` and has no internet permission, so the export
 - A sadhana shortcut opens the app and starts the sadhana through the same path as the Start button. The zero-volume warning and the permission request then still apply. If a sadhana is already running, the shortcut opens the running screen instead.
 - The shortcuts are updated when a sadhana is renamed or deleted.
 
-## 1.5.0: Analytics
+## 1.6.0: Analytics
 
 Analytics come after the log has collected about two months of real entries. The views are designed against that data, not against invented data.
 
@@ -206,7 +213,7 @@ Analytics come after the log has collected about two months of real entries. The
 - **Focus patterns** by time of day and session length. With one person's fixed routine, most groups would never collect enough entries, and the entry time does not record when the practice happened.
 - **Month review.** It repeated what the calendar, the streak and the 30-day count already show.
 
-## 1.6.0: Translations
+## 1.7.0: Translations
 
 - About 100 English texts are written directly in the Kotlin code, and strings.xml holds only 2. These existing texts move into string resources first.
 - Then come Telugu and Hindi versions of every string in the app and the store listing.

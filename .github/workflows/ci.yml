@@ -1,10 +1,13 @@
-# Runs on every push and pull request: unit tests, lint, the colour
+# Runs on every pull request and every push to main: unit tests, lint, the colour
 # contrast check, the permissions doc check and an unsigned release build.
 # The job name "build" is a required check on main. Renaming it blocks merges.
 name: CI
 
+# A push to a pull request's branch already runs it as a pull request,
+# so pushes run it only on main. Otherwise each pull request runs it twice.
 on:
   push:
+    branches: [main]
   pull_request:
 
 permissions:

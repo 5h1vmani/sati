@@ -1,16 +1,8 @@
-# Dependabot opens one pull request a month for each ecosystem.
-# A dependency update can change the release APK, so the release
-# checklist runs tools/repro_check.sh before every release.
+# Dependabot opens one pull request a month for the GitHub Actions in CI.
+# Gradle libraries are not here. An update can change the release APK, so
+# libraries are updated on purpose, once per release cycle (D-17).
 version: 2
 updates:
-  - package-ecosystem: gradle
-    directory: "/"
-    schedule:
-      interval: monthly
-    groups:
-      gradle:
-        patterns: ["*"]
-
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

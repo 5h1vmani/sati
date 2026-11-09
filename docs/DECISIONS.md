@@ -146,3 +146,9 @@ The Test bell button is a new feature, so the release with it is a MINOR release
 Date decided: 7 November 2026
 
 The first pattern was two pulses of 0.3 seconds. Android ran it in full on the Pixel 3 XL, but the maintainer did not feel it. Three pulses of 0.5 seconds felt too long and unusual. One vibration of 1.5 seconds also felt too long. One vibration of 1 second felt right. A sadhana bell keeps its count of strikes, because the count tells the start, a stage change and the end apart.
+
+### D-17: CI runs once per pull request, without Scorecard or library updates from Dependabot
+
+Date decided: 9 November 2026
+
+CI ran on every push and on every pull request, so each pull request ran it twice. Pushes now run it only on `main`. OpenSSF Scorecard scored the repo setup every week, and nobody acted on the score, so it is removed. Dependabot no longer proposes Gradle library updates. Each update can change the release APK, so it needs the reproducibility check and a phone check. Libraries are updated on purpose, once per release cycle. Dependabot still proposes updates to the GitHub Actions in CI, because those touch CI only.

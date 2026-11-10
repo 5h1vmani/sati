@@ -299,6 +299,7 @@ Every release follows these steps in order.
 4. versionCode and versionName are raised.
 5. The release commit is tagged and pushed.
 6. The signed APK is uploaded to GitHub Releases.
+6. The install guide is built from `docs/guide` and uploaded to the same release as `Sati-install-guide.pdf`. The guide's link needs it on every release.
 7. Testers are told about the new version.
 8. This file is updated.
 

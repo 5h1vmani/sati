@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Get Sati on your phone</title>
+<meta name="author" content="Shiva Padakanti">
+<style>
+/* Colours are the Sati app's light theme, from app/src/main/java/com/padakanti/sati/ui/Theme.kt. */
+:root {
+  --brand: #A55E3B;
+  --on-brand: #FFFFFF;
+  --bg: #FFF8F5;
+  --text: #221A16;
+  --text-soft: #53443D;
+  --container: #F7EBE5;
+  --container-high: #F2E4DD;
+  --tint: #FFDBCC;
+  --on-tint: #3B1607;
+  --line: #D8C2BA;
+  --link: #874A2D;
+}
+@font-face { font-family: "Roboto"; src: url("../fonts/Roboto-Regular.ttf"); font-weight: 100 900; }
+@page { size: 100mm 200mm; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: "Roboto"; font-size: 11pt; line-height: 1.4; color: var(--text); background: var(--bg);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.page { width: 100mm; height: 200mm; padding: 8mm 8mm 0; display: flex; flex-direction: column;
+  break-after: page; overflow: hidden; position: relative; background: var(--bg); }
+.page:last-child { break-after: auto; }
+.body { flex: 1; display: flex; flex-direction: column; gap: 3.2mm; min-height: 0; }
+footer { height: 9mm; display: flex; align-items: center; justify-content: space-between;
+  font-size: 8.5pt; color: var(--text-soft); border-top: 0.25mm solid var(--line); margin-top: 2mm; }
+
+/* The step header: where you are, then the step's name. */
+.where { display: flex; align-items: center; justify-content: space-between; font-size: 9pt;
+  color: var(--text-soft); font-weight: 500; }
+.bars { display: flex; gap: 1mm; }
+.bars i { width: 4mm; height: 1.4mm; border-radius: 0.7mm; background: var(--line); }
+.bars i.on { background: var(--brand); }
+h1 { font-size: 22pt; line-height: 1.15; font-weight: 700; margin: 0; letter-spacing: -0.2pt; }
+h2 { font-size: 17pt; line-height: 1.2; font-weight: 700; margin: 0; }
+h3 { font-size: 11pt; font-weight: 700; margin: 0 0 1mm; }
+p { margin: 0; }
+.lead { font-size: 11.5pt; color: var(--text-soft); }
+.small { font-size: 9.5pt; color: var(--text-soft); }
+
+/* Words that are on the phone's screen look like a chip, so a reader can match them. */
+.ui { font-weight: 600; color: var(--on-tint); background: var(--tint); border-radius: 1mm;
+  padding: 0 1.1mm; white-space: nowrap; }
+
+/* Numbered steps in brand circles. */
+ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2.4mm;
+  counter-reset: step; }
+ol.steps > li { counter-increment: step; position: relative; padding-left: 8.5mm; }
+ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: -0.3mm; width: 6mm;
+  height: 6mm; border-radius: 50%; background: var(--brand); color: var(--on-brand); font-size: 9.5pt;
+  font-weight: 700; display: flex; align-items: center; justify-content: center; }
+ol.steps > li > figure { margin-top: 2mm; margin-left: -8.5mm; }
+
+/* A real screenshot with a ring on the control to tap. No blur anywhere: Chrome prints blur as an image. */
+figure.shot { position: relative; margin: 0; border-radius: 3mm; overflow: hidden;
+  border: 0.3mm solid var(--line); background: #fff; flex: none; }
+figure.shot.whole { border-radius: 4mm; border: 0.8mm solid var(--text); }
+figure.shot img { display: block; width: 100%; height: auto; }
+.ring { position: absolute; border: 0.9mm solid var(--brand); border-radius: 2.2mm;
+  outline: 0.5mm solid #fff; }
+
+.row { display: flex; gap: 4mm; align-items: flex-start; }
+.row > .col { flex: 1; display: flex; flex-direction: column; gap: 2.4mm; min-width: 0; }
+.row ol.steps > li { padding-left: 7.5mm; }
+
+/* The link buttons. They are large, so a thumb hits them. */
+a.btn { display: flex; align-items: center; justify-content: center; gap: 2mm; height: 13mm;
+  border-radius: 6.5mm; background: var(--brand); color: var(--on-brand); font-weight: 700;
+  font-size: 12.5pt; text-decoration: none; flex: none; }
+a.btn .icon { width: 5.5mm; height: 5.5mm; }
+a { color: var(--link); font-weight: 500; }
+.addr { font-size: 8.5pt; color: var(--text-soft); text-align: center; word-break: break-all; margin-top: -1.6mm; }
+
+/* Boxes. */
+.box { border-radius: 3mm; padding: 3mm 3.4mm; background: var(--container); font-size: 10pt; }
+.box ul { margin: 0; padding-left: 4mm; display: flex; flex-direction: column; gap: 1.4mm; }
+.box h3 { display: flex; align-items: center; gap: 1.6mm; }
+.box h3 .icon { width: 4.6mm; height: 4.6mm; color: var(--brand); flex: none; }
+.box.done { background: var(--tint); color: var(--on-tint); }
+.icon { width: 1em; height: 1em; vertical-align: -0.15em; }
+.push { margin-top: auto; }
+
+/* The cover. */
+.mark { width: 13mm; height: 13mm; border-radius: 50%; background: var(--brand); color: #FDF7F3;
+  display: flex; align-items: center; justify-content: center; }
+.mark .icon { width: 7.5mm; height: 7.5mm; }
+#cover .body { gap: 2.2mm; }
+#cover h1 { font-size: 20pt; }
+.need { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2mm; }
+.need div { background: var(--container); border-radius: 3mm; padding: 2.6mm 2mm; text-align: center;
+  font-size: 9.5pt; color: var(--text-soft); }
+.need strong { display: block; font-size: 12pt; color: var(--text); }
+.toc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1mm; }
+.toc a { display: flex; justify-content: space-between; text-decoration: none; color: var(--text);
+  background: var(--container); border-radius: 2mm; padding: 1.5mm 3mm; font-size: 10.5pt; }
+.toc a span:last-child { color: var(--text-soft); font-size: 9.5pt; }
+.toc .part { font-size: 9pt; font-weight: 700; color: var(--brand); margin-top: 1.4mm;
+  text-transform: uppercase; letter-spacing: 0.6pt; }
+
+/* Promises on the cover. */
+.promises { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6mm; }
+.promises span { display: flex; align-items: center; justify-content: center; gap: 1.2mm; background: var(--tint); color: var(--on-tint);
+  border-radius: 3.5mm; padding: 1.2mm 2.6mm 1.2mm 2mm; font-weight: 600; font-size: 10pt; }
+.promises .icon { width: 4mm; height: 4mm; }
+/* About Sati. */
+.phones { display: flex; justify-content: space-between; }
+.phones figure.shot.whole { border-width: 0.6mm; border-radius: 3mm; }
+.phones .cap { font-size: 9pt; font-weight: 600; text-align: center; margin-top: 1.2mm; color: var(--text-soft); }
+.quote { border-left: 1.2mm solid var(--brand); padding: 1mm 0 1mm 3.5mm; font-size: 11.5pt; }
+.quote .by { display: block; font-size: 9.5pt; color: var(--text-soft); margin-top: 1mm; }
+dl.feat { margin: 0; display: flex; flex-direction: column; gap: 2mm; font-size: 10.5pt; }
+dl.feat dt { font-weight: 700; }
+dl.feat dd { margin: 0; color: var(--text-soft); }
+/* Plain statements with a check mark. */
+ul.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.8mm; }
+ul.checks li { display: flex; gap: 2mm; align-items: flex-start; }
+ul.checks .icon { width: 5mm; height: 5mm; color: var(--brand); flex: none; margin-top: 0.2mm; }
+.box p + p, .box figure + p, .box p + figure { margin-top: 1.4mm; }
+.box figure.shot { margin-left: auto; margin-right: auto; }
+/* Three ways to get an app. */
+.way { border-radius: 3mm; padding: 2.6mm 3.4mm; background: var(--container); font-size: 10pt; }
+.way h3 { font-size: 11pt; }
+.way.best { background: var(--bg); border: 0.7mm solid var(--brand); }
+.way .tag { float: right; font-size: 8.5pt; font-weight: 700; color: var(--on-brand); background: var(--brand);
+  border-radius: 2mm; padding: 0.4mm 2mm; }
+/* Questions. */
+dl.qa { margin: 0; display: flex; flex-direction: column; gap: 2.6mm; font-size: 10pt; }
+dl.qa dt { font-weight: 700; font-size: 10.5pt; }
+dl.qa dd { margin: 0.6mm 0 0; color: var(--text-soft); }
+
+/* The cover: the product first, then the install guide. */
+.brand { display: flex; align-items: center; gap: 3.4mm; }
+.brand h1 { font-size: 30pt; line-height: 1; }
+.tagline { font-size: 11.5pt; color: var(--text-soft); margin-top: 1mm; }
+ul.tools { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1.8mm; }
+ul.tools li { display: flex; gap: 3mm; align-items: center; background: var(--container); border-radius: 3mm; padding: 1.8mm 3mm; }
+ul.tools .ti { width: 9mm; height: 9mm; border-radius: 50%; background: var(--tint); color: var(--brand); flex: none;
+  display: flex; align-items: center; justify-content: center; }
+ul.tools .ti .icon { width: 5mm; height: 5mm; }
+ul.tools div { display: flex; flex-direction: column; font-size: 10pt; color: var(--text-soft); }
+ul.tools .tn { font-size: 11.5pt; color: var(--text); }
+h2.install { font-size: 13pt; margin-top: 1.4mm; }
+</style>
+</head>
+<body>
+
+<section class="page" id="cover">
+  <div class="body">
+    <div class="brand"><div class="mark">{{icon:bell}}</div><div><h1>Sati</h1><p class="tagline">Three tools for your daily practice</p></div></div>
+    <ul class="tools">
+      <li><span class="ti">{{icon:bell}}</span><div><b class="tn">Mindfulness bell</b><span>It rings now and then through your day.</span></div></li>
+      <li><span class="ti">{{icon:timer}}</span><div><b class="tn">Sadhana timer</b><span>Stage bells let you keep your eyes closed.</span></div></li>
+      <li><span class="ti">{{icon:notebook_pen}}</span><div><b class="tn">Practice log</b><span>See how your week and your 12 weeks went.</span></div></li>
+    </ul>
+    <div class="promises">
+      <span>{{icon:check}}Free</span><span>{{icon:check}}No ads</span><span>{{icon:check}}No account</span>
+      <span>{{icon:check}}Private</span><span>{{icon:check}}Offline</span><span>{{icon:check}}Open source</span>
+    </div>
+    <h2 class="install">Install guide</h2>
+    <div class="need">
+      <div><strong>Android 12</strong>or newer</div>
+      <div><strong>10 minutes</strong>one time</div>
+      <div><strong>40 MB</strong>of data</div>
+    </div>
+    <ul class="toc">
+      <li><a href="#about"><span>Before you start</span><span>page 2</span></a></li>
+      <li><a href="#step1"><span>Part 1 · Install Obtainium</span><span>page 5</span></a></li>
+      <li><a href="#step5"><span>Part 2 · Install Sati</span><span>page 9</span></a></li>
+      <li><a href="#updates"><span>Updates</span><span>page 12</span></a></li>
+      <li><a href="#questions"><span>Questions</span><span>page 13</span></a></li>
+    </ul>
+    <p class="small push">Open this guide on the phone where you want Sati. Then you can tap the buttons in it.</p>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="about">
+  <div class="body">
+    <div class="where"><span>Before you start · 1 of 3</span></div>
+    <h2>About Sati</h2>
+    <div class="phones">
+      <div>{{fig:sati_bell}}<div class="cap">Bell</div></div>
+      <div>{{fig:sati_sadhana}}<div class="cap">Sadhana</div></div>
+      <div>{{fig:sati_log}}<div class="cap">Log</div></div>
+    </div>
+    <dl class="feat">
+      <dt>The bell</dt><dd>A soft bell rings now and then during your waking hours. You choose how often.</dd>
+      <dt>Sadhana timer</dt><dd>Split your practice into stages. A bell marks each stage, so you can keep your eyes closed.</dd>
+      <dt>Practice log</dt><dd>Note your practices each day. See how your week and your last 12 weeks went.</dd>
+    </dl>
+    <div class="quote push">I made Sati for my own practice. I share it free with friends and fellow practitioners.<span class="by">Shiva</span></div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="privacy">
+  <div class="body">
+    <div class="where"><span>Before you start · 2 of 3</span></div>
+    <h2>Your data stays on your phone</h2>
+    <ul class="checks">
+      <li>{{icon:circle_check}}<span>Sati has no account and no sign-up.</span></li>
+      <li>{{icon:circle_check}}<span>Sati has no ads and no trackers.</span></li>
+      <li>{{icon:circle_check}}<span>Your log, your practices and your settings are saved only on your phone.</span></li>
+    </ul>
+    <div class="box">
+      <h3>What "no internet" means</h3>
+      <p>Every app must ask Android before it can use the internet. Sati never asks. So Android does not let Sati go online.</p>
+      <p>Sati cannot send your log anywhere, even by mistake. Not to me, and not to anyone else.</p>
+      <p>You can check this yourself. Find Sati under Apps in your phone's Settings. It says <span class="ui">No data used</span>.</p>
+      {{fig:no_data}}
+      <p>Sati's code is also public on GitHub, so anyone can check it.</p>
+    </div>
+    <div class="box">
+      <h3>Keep your own copy</h3>
+      <p>Sati also stays out of Android's backup to Google Drive. So nobody else keeps a copy of your log.</p>
+      <p>If you lose your phone, your log is lost too. To keep a copy, use <b>Export</b> in the menu of Sati's Log tab.</p>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="why">
+  <div class="body">
+    <div class="where"><span>Before you start · 3 of 3</span></div>
+    <h2>Why Obtainium?</h2>
+    <p>There are three ways to get an app. Only one works well for Sati.</p>
+    <div class="way"><h3>The Play Store</h3><p>Sati is not on the Play Store. It is a small personal project.</p></div>
+    <div class="way"><h3>A file sent on WhatsApp</h3><p>It installs once and never updates. You also cannot be sure that the file is the real Sati.</p></div>
+    <div class="way best"><span class="tag">This guide</span><h3>Obtainium</h3><p>It gets the real Sati from its own page on GitHub. It updates Sati by itself. It is free and open source, with no account.</p></div>
+    <div class="box">
+      <h3>{{icon:circle_check}}Safe updates</h3>
+      <p>Every Sati update carries my digital signature. Android refuses an update without it. So a fake update cannot replace your Sati.</p>
+    </div>
+    <div class="box">
+      <h3>{{icon:triangle_alert}}About the warnings</h3>
+      <p>Android warns about every app from outside the Play Store. The warnings are normal, and they are not about Sati. Steps 2 and 6 show them.</p>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="step1">
+  <div class="body">
+    <div class="where"><span>Part 1 · Step 1 of 7</span><span class="bars"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+    <h2>Download Obtainium</h2>
+    <a class="btn" href="{{url:obtainium_apk}}">{{icon:download}}Download Obtainium</a>
+    <p class="addr">{{url:obtainium_apk}}</p>
+    <ol class="steps">
+      <li>Tap the button above. Your browser downloads the file, which is about 35 MB.</li>
+      <li>When the download ends, tap <span class="ui">Open</span> at the top of the screen.
+        {{fig:downloaded}}</li>
+    </ol>
+    <div class="box push">
+      <h3>{{icon:triangle_alert}}If it does not work</h3>
+      <ul>
+        <li>The <span class="ui">Open</span> message goes away after a few seconds. Then open Chrome's menu {{icon:ellipsis_vertical}}, tap <span class="ui">Downloads</span>, and tap the file.</li>
+        <li>If your phone cannot install the file, <a href="{{url:obtainium_apk_all}}">download the larger file</a> instead. It works on every phone.</li>
+      </ul>
+    </div>
+  </div>
+  <footer><span>These screens are from Chrome on Android 16.</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="step2">
+  <div class="body">
+    <div class="where"><span>Part 1 · Step 2 of 7</span><span class="bars"><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></span></div>
+    <h2>Let Chrome install apps</h2>
+    <p>Android asks before a browser installs an app. You allow it only once.</p>
+    <ol class="steps">
+      <li>Tap <span class="ui">Settings</span>.
+        {{fig:blocked}}</li>
+      <li>Turn on <span class="ui">Allow from this source</span>.
+        {{fig:allow_chrome}}</li>
+      <li>Go back with your phone's back gesture or back button.</li>
+    </ol>
+    <div class="box push">
+      <h3>{{icon:triangle_alert}}If it does not work</h3>
+      <ul><li>Some phones use other words on this screen. Look for a switch next to your browser's name, and turn it on.</li></ul>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="step3">
+  <div class="body">
+    <div class="where"><span>Part 1 · Step 3 of 7</span><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+    <h2>Install Obtainium</h2>
+    <ol class="steps">
+      <li>Tap <span class="ui">Install</span>.
+        {{fig:install_obtainium}}</li>
+      <li>When the install ends, tap <span class="ui">Open</span>.
+        {{fig:installed_obtainium}}</li>
+    </ol>
+    <div class="box push">
+      <h3>{{icon:triangle_alert}}If it does not work</h3>
+      <ul>
+        <li>The install screen may not come back after step 2. Then open Chrome's menu {{icon:ellipsis_vertical}}, tap <span class="ui">Downloads</span>, and tap the file again.</li>
+        <li>Google Play Protect may ask to scan the app. Let it scan, and then install.</li>
+      </ul>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="step4">
+  <div class="body">
+    <div class="where"><span>Part 1 · Step 4 of 7</span><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
+    <h2>Open Obtainium</h2>
+    <ol class="steps">
+      <li>Tap <span class="ui">Allow</span>, so Obtainium can tell you about updates.
+        {{fig:notifications}}</li>
+      <li>Obtainium shows a <span class="ui">Welcome</span> note. Tap <span class="ui">Okay</span>.</li>
+      <li>Obtainium then shows a <span class="ui">Note</span> about Google's plans for apps from outside the Play Store. Tap <span class="ui">Okay</span>.</li>
+    </ol>
+    <div class="box done push">
+      <h3>{{icon:circle_check}}Obtainium is ready</h3>
+      <p>Its list of apps shows Obtainium itself. Next, you add Sati to this list.</p>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="step5">
+  <div class="body">
+    <div class="where"><span>Part 2 · Step 5 of 7</span><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span></div>
+    <h2>Add Sati to Obtainium</h2>
+    <a class="btn" href="{{url:add_sati}}">{{icon:plus}}Add Sati to Obtainium</a>
+    <div class="row">
+      {{fig:add_app}}
+      <div class="col">
+        <ol class="steps">
+          <li>Tap the button above. Obtainium opens with Sati's address filled in.</li>
+          <li>Tap <span class="ui">Add</span> at the top right.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="box push">
+      <h3>{{icon:triangle_alert}}If it does not work</h3>
+      <ul><li>Open Obtainium and tap <span class="ui">Add</span> at the bottom right. Type <b>github.com/5h1vmani/sati</b> in the box, and tap <span class="ui">Add</span>.</li></ul>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="step6">
+  <div class="body">
+    <div class="where"><span>Part 2 · Step 6 of 7</span><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
+    <h2>Install Sati</h2>
+    <div class="row">
+      {{fig:sati_page}}
+      <div class="col">
+        <ol class="steps">
+          <li>Tap <span class="ui">Install</span> at the bottom right.</li>
+          <li>Android asks again, this time for Obtainium. Turn on <span class="ui">Allow from this source</span>, and go back.</li>
+          <li>Tap <span class="ui">Install</span>, as in the picture below.</li>
+        </ol>
+      </div>
+    </div>
+    {{fig:install_sati}}
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="step7">
+  <div class="body">
+    <div class="where"><span>Part 2 · Step 7 of 7</span><span class="bars"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
+    <h2>Open Sati</h2>
+    <div class="row">
+      {{fig:apps_list}}
+      <div class="col">
+        <p>Obtainium now lists Sati with its version.</p>
+        <ol class="steps">
+          <li>Tap Sati's icon to open it.</li>
+          <li>Tap <span class="ui">Turn on</span>. Sati starts to ring during your waking hours.</li>
+        </ol>
+        <p class="small">You can also open Sati from your phone's list of apps, like any other app.</p>
+      </div>
+    </div>
+    <div class="box done push">
+      <h3>{{icon:circle_check}}Sati is installed</h3>
+      <p>Obtainium keeps Sati up to date. The next page shows how an update looks.</p>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="updates">
+  <div class="body">
+    <h2>Updates</h2>
+    <p>Obtainium checks for a new version every 6 hours. It sends a notification when Sati has one.</p>
+    <ol class="steps">
+      <li>Open Obtainium, and tap <span class="ui">Update</span> next to Sati.
+        {{fig:update_list}}</li>
+      <li>Tap <span class="ui">Update</span> again to confirm.
+        {{fig:update_prompt}}</li>
+    </ol>
+    <p class="small">An update keeps your log and your settings.</p>
+    <div class="box push">
+      <h3>{{icon:circle_check}}Only real updates</h3>
+      <p>Android installs an update only when it carries my signature. Obtainium cannot change that.</p>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="questions">
+  <div class="body">
+    <h2>Questions</h2>
+    <dl class="qa">
+      <dt>Does Sati cost anything?</dt><dd>No. Sati is free, with no ads and nothing to buy.</dd>
+      <dt>What does Sati ask for?</dt><dd>It asks to show notifications, for the sadhana timer. It may also ask to run in the background, so bells ring on time.</dd>
+      <dt>Does Obtainium use the internet?</dt><dd>Yes. It needs the internet to download Sati and to check for new versions.</dd>
+      <dt>Can I remove Sati?</dt><dd>Yes, like any other app. Removing Sati also deletes your log, so export it first.</dd>
+      <dt>What if I change phones?</dt><dd>Export your log on the old phone. Install Sati on the new phone with this guide. Then use <b>Import</b> in the same menu.</dd>
+    </dl>
+    <div class="box done push">
+      <h3>Need help?</h3>
+      <p><a href="{{url:issues}}">Report a problem on GitHub</a>. It needs a free GitHub account.</p>
+      <p>Add a screenshot, your phone model and your Android version. Add Sati's version too, from the bottom of its App info screen.</p>
+      <p>If a bell did not ring, tap <b>Test bell</b> in Sati. Add a screenshot of what it shows.</p>
+      <p>If Sati helps your practice, you can <a href="{{url:sati_repo}}">star it on GitHub</a>. A star helps other people find Sati.</p>
+    </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<script>
+// Marks each sheet whose content is taller than the sheet, so print.mjs can fail on it.
+addEventListener("load", () => document.querySelectorAll(".body").forEach((b) => {
+  if (b.scrollHeight > b.clientHeight + 1) b.closest(".page").setAttribute("data-overflow", b.closest(".page").id + " by " + Math.round((b.scrollHeight - b.clientHeight) / 3.78) + " mm");
+}));
+</script>
+</body>
+</html>

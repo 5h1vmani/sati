@@ -18,3 +18,6 @@ sounds/
 
 # Claude Code session worktrees.
 .claude/worktrees/
+
+# The install guide PDF is built, then attached to each release.
+docs/guide/Sati-install-guide.pdf

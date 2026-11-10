@@ -68,6 +68,8 @@ To get updates automatically, use [Obtainium](https://github.com/ImranR98/Obtain
 
 Android asks once whether Obtainium may install apps. Allow it.
 
+A guide with pictures shows every step on a phone. [Download the install guide](https://github.com/5h1vmani/sati/releases/latest/download/Sati-install-guide.pdf).
+
 Every release is signed with the same key. Its SHA-256 certificate fingerprint is:
 
 ```

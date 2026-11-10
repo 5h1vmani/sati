@@ -164,3 +164,9 @@ The maintainer asks an agent to run the release steps, as for 1.1.0 to 1.4.0. Th
 Date decided: 9 November 2026
 
 The maintainer logs about 18 practices every day, and the log showed nothing back. So the analytics move to 1.5.0, and the timer link, the evening reminder and the launcher shortcuts move to 1.6.0. The plan waited for two months of entries. The views that need a lot of data already wait on their own, after 4 weeks or 12 weeks. The design puts the week on each Today row, adds a 12-week view, and drops the streak counter. A streak falls to 0 after one missed day, which makes people give up.
+
+### D-20: The install guide is a PDF on every release, and help goes through GitHub Issues
+
+Date decided: 10 November 2026
+
+The maintainer shares Sati with a yoga group, and most members are not technical. A PDF with real screenshots shows each step of the Obtainium install. Its pages are sized for a phone, because members read it where they get it, in WhatsApp. The PDF is attached to every release, so one link always gives the newest guide. The guide's source lives in `docs/guide`, so it changes together with the app. Help requests go to GitHub Issues only, because the maintainer does not want to publish a personal email address or phone number. Sati has no internet access, so it sends no logs. A person who needs help adds a screenshot and their phone, Android and Sati versions.

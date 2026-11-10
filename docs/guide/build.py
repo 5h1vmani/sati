@@ -55,6 +55,8 @@ FIGS = {
     # Sati's own store screenshots, shown whole with no ring.
     "sati_bell": ("store/1", None, None, None, 25),
     "sati_sadhana": ("store/7", None, None, None, 25),
+    "help_card": ("sati/first-on", (0, 1400, 1440, 1920), "Open", None, 84),
+    "test_bell": ("sati/first-testbell-rang", (0, 1990, 1440, 2570), "Test bell", None, 84),
     "no_data": ("sati/appinfo", (0, 2300, 1440, 2540), "No data used", None, 76),
     "sati_log": ("store/9", None, None, None, 25),
 }

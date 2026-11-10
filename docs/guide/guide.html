@@ -47,7 +47,8 @@ p { margin: 0; }
 
 /* Words that are on the phone's screen look like a chip, so a reader can match them. */
 .ui { font-weight: 600; color: var(--on-tint); background: var(--tint); border-radius: 1mm;
-  padding: 0 1.1mm; white-space: nowrap; }
+  padding: 0 1.1mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+/* A chip may wrap in a narrow column. Each line keeps its own background and padding. */
 
 /* Numbered steps in brand circles. */
 ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2.4mm;
@@ -173,8 +174,8 @@ h2.install { font-size: 13pt; margin-top: 1.4mm; }
       <li><a href="#about"><span>Before you start</span><span>page 2</span></a></li>
       <li><a href="#step1"><span>Part 1 · Install Obtainium</span><span>page 5</span></a></li>
       <li><a href="#step5"><span>Part 2 · Install Sati</span><span>page 9</span></a></li>
-      <li><a href="#updates"><span>Updates</span><span>page 12</span></a></li>
-      <li><a href="#questions"><span>Questions</span><span>page 13</span></a></li>
+      <li><a href="#first"><span>Your first 5 minutes</span><span>page 12</span></a></li>
+      <li><a href="#updates"><span>Updates and questions</span><span>page 13</span></a></li>
     </ul>
     <p class="small push">Open this guide on the phone where you want Sati. Then you can tap the buttons in it.</p>
   </div>
@@ -241,6 +242,7 @@ h2.install { font-size: 13pt; margin-top: 1.4mm; }
     <div class="box">
       <h3>{{icon:triangle_alert}}About the warnings</h3>
       <p>Android warns about every app from outside the Play Store. The warnings are normal, and they are not about Sati. Steps 2 and 6 show them.</p>
+      <p>Google Play Protect may offer to scan Sati. When I scanned it, Play Protect found Sati safe.</p>
     </div>
   </div>
   <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
@@ -378,15 +380,31 @@ h2.install { font-size: 13pt; margin-top: 1.4mm; }
         <p>Obtainium now lists Sati with its version.</p>
         <ol class="steps">
           <li>Tap Sati's icon to open it.</li>
-          <li>Tap <span class="ui">Turn on</span>. Sati starts to ring during your waking hours.</li>
         </ol>
         <p class="small">You can also open Sati from your phone's list of apps, like any other app.</p>
       </div>
     </div>
     <div class="box done push">
       <h3>{{icon:circle_check}}Sati is installed</h3>
-      <p>Obtainium keeps Sati up to date. The next page shows how an update looks.</p>
+      <p>Obtainium keeps Sati up to date. The next page shows what to do first in Sati.</p>
     </div>
+  </div>
+  <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
+</section>
+
+<section class="page" id="first">
+  <div class="body">
+    <h2>Your first 5 minutes</h2>
+    <p>Do these things once, right after you install Sati.</p>
+    <ol class="steps">
+      <li>Tap <span class="ui">Turn on</span>. Then tap <span class="ui">Allow</span>, so the bell rings while Sati is closed.</li>
+      <li>Sati may show <span class="ui">Help Sati ring on time</span>. Tap <span class="ui">Open</span>, and turn off the option for unused apps.
+        {{fig:help_card}}</li>
+      <li>Scroll down, and tap <span class="ui">Test bell</span>. Lock the phone. After 10 seconds, Sati shows whether the bell rang.
+        {{fig:test_bell}}</li>
+      <li>In the <span class="ui">Sadhana</span> tab, tap <span class="ui">New sadhana</span> to set up your practice. One strike starts it, two mark a new stage, and three end it.</li>
+      <li>In the <span class="ui">Log</span> tab, tap <span class="ui">Add practice</span> for each practice you keep.</li>
+    </ol>
   </div>
   <footer><span>Sati install guide</span><span>{{page}} of {{pages}}</span></footer>
 </section>

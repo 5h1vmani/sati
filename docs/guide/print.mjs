@@ -3,7 +3,7 @@
 // It starts headless Chrome and speaks the Chrome DevTools Protocol over the
 // WebSocket that Node 22 and newer has built in. The Chrome command line cannot
 // ask for tags and bookmarks, so this script uses the protocol.
-// It also fails when a sheet's content is taller than the sheet.
+// It also fails when a sheet's content is taller than the sheet, or wider than it.
 //
 // Usage: node print.mjs. Set $CHROME when Chrome is not in the standard macOS place.
 import { spawn } from "node:child_process";
@@ -67,6 +67,17 @@ try {
     returnByValue: true,
   }, sessionId);
 
+  // Text that runs past the right edge of its sheet's content area, such as a chip that cannot wrap.
+  const wide = await send("Runtime.evaluate", {
+    expression: `[...document.querySelectorAll(".body")].flatMap((b) => {
+      const edge = b.getBoundingClientRect().right + 1;
+      return [...b.querySelectorAll("span, a, b, p, li")]
+        .filter((e) => [...e.getClientRects()].some((r) => r.right > edge))
+        .map((e) => b.closest(".page").id + ": " + e.textContent.trim().slice(0, 40));
+    })`,
+    returnByValue: true,
+  }, sessionId);
+
   const pdf = await send("Page.printToPDF", {
     printBackground: true, preferCSSPageSize: true, displayHeaderFooter: false,
     generateTaggedPDF: true, generateDocumentOutline: true,
@@ -74,6 +85,11 @@ try {
   writeFileSync(resolve(root, "Sati-install-guide.pdf"), Buffer.from(pdf.data, "base64"));
   console.log("print: wrote Sati-install-guide.pdf");
   const overflow = check.result.value;
+  const past = [...new Set(wide.result.value)];
+  if (past.length) {
+    console.error("print: FAIL text past the page edge on " + past.join(" | "));
+    process.exitCode = 1;
+  }
   if (overflow.length) {
     console.error("print: FAIL overflow on " + overflow.join(", "));
     process.exitCode = 1;

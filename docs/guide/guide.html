@@ -47,7 +47,8 @@ p { margin: 0; }
 
 /* Words that are on the phone's screen look like a chip, so a reader can match them. */
 .ui { font-weight: 600; color: var(--on-tint); background: var(--tint); border-radius: 1mm;
-  padding: 0 1.1mm; white-space: nowrap; }
+  padding: 0 1.1mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+/* A chip may wrap in a narrow column. Each line keeps its own background and padding. */
 
 /* Numbered steps in brand circles. */
 ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2.4mm;
